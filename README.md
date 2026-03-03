@@ -19,7 +19,7 @@ Sales operations plugin for Stratus Information Systems. Covers the full Cisco/M
 | **weborder-to-deal-automation-v1-1** | Closed-won deal creation from Cisco/Meraki weborders |
 | **erate-proposal-workflow-v1-1** | E-Rate Form 470 competitive bid workflow |
 | **pharos-iq-automation** | PharosIQ lead-to-deal conversion with Zoho CRM |
-| **skill-creator-v7** | Skill authoring and versioning tool |
+| **skill-creator-v8** | Skill authoring, versioning, and GitHub auto-sync |
 
 ## Required Connectors
 
