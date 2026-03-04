@@ -6,7 +6,7 @@ Sales operations plugin for Stratus Information Systems. Covers the full Cisco/M
 
 | Skill | Description |
 |-------|-------------|
-| **zoho-crm-v27** | Core CRM operations: deals, quotes, tasks, admin actions |
+| **zoho-crm-v28** | Core CRM operations: deals, quotes, tasks, admin actions |
 | **zoho-crm-email-v3-5** | Email composition and sending with Pipedream-first routing |
 | **daily-task-engine-v1-4** | Task review, routing, inbox scanning, and batch processing |
 | **fu30-followup-automation-v1-3** | 30-day post-sale follow-up email automation |

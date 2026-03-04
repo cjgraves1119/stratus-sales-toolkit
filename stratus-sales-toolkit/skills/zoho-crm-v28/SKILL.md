@@ -1,9 +1,15 @@
 ---
-name: zoho-crm-v27
-description: "zoho crm with never-manually-close-won rule, weborder association logic, strengthened successor enforcement on all actions, gmail-as-source-of-truth for deal context, pipedream/zapier tool identification, and updated companion skill references. triggers: create quote, new deal, update deal, close task, task review, daily tasks, task clean up, help me complete todays tasks, close out my tasks, what tasks are due, review my tasks, submit to ccw, admin action, clone quote, cancel po. org id: org647122552."
+name: zoho-crm-v28
+description: "zoho crm with product_name field fix for inactive inventory bypass, never-manually-close-won rule, weborder association logic, strengthened successor enforcement on all actions, gmail-as-source-of-truth for deal context, pipedream/zapier tool identification, and updated companion skill references. triggers: create quote, new deal, update deal, close task, task review, daily tasks, task clean up, help me complete todays tasks, close out my tasks, what tasks are due, review my tasks, submit to ccw, admin action, clone quote, cancel po. org id: org647122552."
 ---
 
-# Zoho CRM v27 (Never Close Won + Weborder Check + Gmail Source of Truth)
+# Zoho CRM v28 (Product_Name Fix + Never Close Won + Weborder Check + Gmail Source of Truth)
+
+
+## What's New in v28
+- **PRODUCT_NAME FIELD FIX (CRITICAL)**: When adding line items to Quotes or Sales Orders via API, ALWAYS use `Product_Name: {"id": "..."}` instead of `product: {"id": "..."}`. The `product` field triggers Zoho's inventory active check and rejects products with negative stock quantities even when `Product_Active = true`. `Product_Name` bypasses this check while correctly linking the product record. Applies to ALL quote/SO line item operations.
+- **DISCOUNT IS DOLLAR AMOUNT**: The `Discount` field on Quoted_Items accepts a **dollar amount**, not a percentage. To price at $138 with list $201, set `Discount: 63`. Unit_Price cannot be overridden via API — use Discount to achieve target pricing.
+- All v27 features retained
 
 ## What's New in v27
 - **NEVER MANUALLY CLOSE WON**: Deals are NEVER manually set to Closed Won by Claude. Deals auto-close when a completed PO (Sales_Order) is attached. If a deal appears fulfilled but is not Closed Won, check for a weborder and use weborder-to-deal-automation skill to properly associate.
@@ -752,7 +758,18 @@ REPLACE PO WORKFLOW:
 
 If quote creation fails with error: `"can't add inactive product in the inventory"`
 
-**Auto-Recovery Steps:**
+**Root Cause:** Zoho's `product: {"id": "..."}` field triggers an inventory active check. Products with negative stock (Qty_in_Stock < 0) fail this check even when `Product_Active = true`.
+
+**Fix (v28): Always use `Product_Name` field, never `product` field**
+```json
+// CORRECT - bypasses inventory check
+{"Quoted_Items": [{"Product_Name": {"id": "2570562000205715303"}, "Quantity": 1}]}
+
+// WRONG - triggers inventory check, fails on negative stock
+{"Quoted_Items": [{"product": {"id": "2570562000205715303"}, "Quantity": 1}]}
+```
+
+**If error still occurs after using Product_Name:**
 1. Extract the Product_Code from the failed SKU
 2. Search Products module for active product with same code:
    ```
@@ -761,7 +778,7 @@ If quote creation fails with error: `"can't add inactive product in the inventor
    Fields: id,Product_Name,Product_Code,Product_Active
    Filter: Product_Active = true
    ```
-3. Use the active product ID and retry quote creation
+3. Use the active product ID and retry with Product_Name field
 4. Flag hot-cache.json for update (stale ID detected)
 
 **Common Stale SKUs:** License SKUs get replaced when Cisco updates pricing. Hardware SKUs are usually stable.
