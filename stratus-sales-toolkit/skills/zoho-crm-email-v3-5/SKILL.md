@@ -12,7 +12,7 @@ Pipedream-first email routing with **4-tier failover**, **draft presentation rul
 See CHANGELOG.md for what changed in each version.
 ---
 
-## CRITICAL: Tool UUID Identification (NEW IN V3.5)
+## CRITICAL: Tool UUID Identification
 
 ### MCP Tool Reference Table
 
@@ -39,7 +39,7 @@ Error parsing arguments: "instruction" Required
 
 **ALWAYS use `instruction` (singular) for ALL Pipedream tool calls. No exceptions.**
 
-## CRITICAL: Pipedream Message ID Sourcing (NEW IN V3.5)
+## CRITICAL: Pipedream Message ID Sourcing
 
 When composing thread replies via Pipedream:
 
@@ -55,7 +55,7 @@ IF the target message has cycled out of Pipedream's available list:
   -> Include context from the original thread in the body for continuity
 ```
 
-## Email Opt-Out Scope (NEW IN V3.5)
+## Email Opt-Out Scope
 
 Zoho contact `Email_Opt_Out = true` ONLY blocks emails sent via **Zoho CRM Mail (Tier 2)**.
 
@@ -374,7 +374,7 @@ Apply the Chris Graves style guide. Enforce mandatory line spacing rules.
 
 ### Step 5: MANDATORY Draft Review (Never Skip)
 
-**DRAFT PRESENTATION RULES (NEW IN V3.5):**
+**DRAFT PRESENTATION RULES:**
 - Body ends at the closing line ("Best," or "Thanks," or similar)
 - Signature is NOT shown in draft preview (reduces clutter, signature is auto-included in send instruction)
 - Blank line between EVERY paragraph in preview (verify before showing)

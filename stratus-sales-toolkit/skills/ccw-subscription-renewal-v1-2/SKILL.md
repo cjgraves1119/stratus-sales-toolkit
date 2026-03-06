@@ -387,7 +387,7 @@ https://crm.zoho.com/crm/org647122552/tab/Quotes/{RECORD_ID}
 
 ---
 
-## Batch Renewal Support (NEW IN V1-2)
+## Batch Renewal Support
 
 ### When to Use
 
@@ -427,7 +427,7 @@ https://crm.zoho.com/crm/org647122552/tab/Quotes/2570562000391234567"
 
 ---
 
-## JS Readiness Polling (NEW IN V1-2)
+## JS Readiness Polling
 
 Replace arbitrary `wait` calls with DOM readiness checks:
 

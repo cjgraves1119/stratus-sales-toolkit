@@ -136,7 +136,7 @@ If no events today, display: "📅 No meetings today — clear calendar for task
 
 ---
 
-## Phase 1: Canonical Zoho Query (FROM V1.7)
+## Phase 1: Canonical Zoho Query
 
 ### Primary Query (Use This First)
 
@@ -179,7 +179,7 @@ Proceeding with: {X} open tasks
 
 ---
 
-## Phase 1b: IR01 Batch Pre-Filter (FROM V1.7)
+## Phase 1b: IR01 Batch Pre-Filter
 
 ### What IR01 Tasks Are
 
@@ -275,7 +275,7 @@ one JSON object and nothing else. This is required to prevent context exhaustion
 
 ---
 
-## Phase 3: Pre-Presentation Gate (NEW IN V1.8)
+## Phase 3: Pre-Presentation Gate
 
 **MANDATORY: Run this gate on every email draft before building the approval table.**
 
@@ -447,7 +447,7 @@ NEVER send a modified draft without first presenting the revised version for exp
 
 ---
 
-## Revised Draft Approval Rule (FROM V1.6)
+## Revised Draft Approval Rule
 
 When a user requests ANY edits to a proposed draft, the full revised draft MUST be presented for explicit user approval BEFORE sending.
 
@@ -472,7 +472,7 @@ This rule applies any time the user: adds a recipient, changes tone/content, adj
 
 ---
 
-## Reply-All Thread Enforcement (FROM V1.6)
+## Reply-All Thread Enforcement
 
 Before sending ANY reply to an existing email thread:
   1. Call `gmail_read_thread` with the thread ID

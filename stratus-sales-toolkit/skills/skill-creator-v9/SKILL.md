@@ -132,7 +132,7 @@ VERSION COMPARISON RESULTS:
 
 ---
 
-## PLUGIN-AWARE MODE (NEW IN V9)
+## PLUGIN-AWARE MODE
 
 When a skill is a member of the stratus-sales-toolkit plugin (see list above), additional steps are required depending on whether the skill's **folder name** changes.
 

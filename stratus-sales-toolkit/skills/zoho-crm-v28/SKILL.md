@@ -7,7 +7,7 @@ description: "zoho crm with product_name field fix for inactive inventory bypass
 
 See CHANGELOG.md for what changed in each version.
 
-## LIVE DEAL STAGE VALIDATION (CRITICAL - NEW IN V20)
+## LIVE DEAL STAGE VALIDATION
 
 ### Why Live Validation?
 
@@ -47,7 +47,7 @@ ZohoCRM_Get_Field:
 
 **Note:** Lead_Source and Reason values are stable and controlled by Stratus admins, so the hardcoded lists remain valid for those fields. Only Stage requires live validation because Zoho auto-creates invalid values silently.
 
-## NEVER MANUALLY CLOSE WON (CRITICAL - NEW IN V27)
+## NEVER MANUALLY CLOSE WON
 
 ### Rule
 
@@ -80,7 +80,7 @@ When routing to weborder-to-deal-automation-v1-1:
 - Do NOT change Lead_Source unless instructed
 - The weborder association itself triggers the Closed Won automation
 
-## GMAIL AS SOURCE OF TRUTH (CRITICAL - NEW IN V27)
+## GMAIL AS SOURCE OF TRUTH
 
 ### Rule
 
@@ -103,7 +103,7 @@ BEFORE proposing any action on a deal-linked task:
 
 Zoho Last_Activity_Time can be misleading (updates on internal changes, not just customer contact). Gmail provides the real picture of when you last actually communicated with the customer.
 
-## PRE-CLOSE DEAL VALIDATION (CRITICAL - NEW IN V26)
+## PRE-CLOSE DEAL VALIDATION
 
 ### Purpose
 
@@ -650,7 +650,7 @@ TYPICAL QUOTE-TO-PO FLOW:
 8. Customer signs → Order placed with distribution
 ```
 
-## ECOMM-TO-PO WORKFLOW (NEW IN V17)
+## ECOMM-TO-PO WORKFLOW
 
 ### When to Use
 Customer needs a formal Purchase Order instead of ecomm checkout, typically because:
@@ -677,7 +677,7 @@ ECOMM-TO-PO FLOW:
 - Can proceed to PO conversion immediately after DID is generated
 - Ensure Net_Terms is correct before Step 5 (cannot change after)
 
-## CANCEL PENDING PO BEFORE NEW QUOTE (NEW IN V17)
+## CANCEL PENDING PO BEFORE NEW QUOTE
 
 ### When a Deal Has an Existing PO
 
@@ -1146,7 +1146,7 @@ IF Lead_Source = "Stratus Referal", "VDC", or "Website":
 | "true forward", "TF quote" | → **USE subscription-modification-v2-4+** |
 | "CPO quote", "process this subscription" | → **USE subscription-modification-v2-4+** |
 
-## CCW CSV GENERATION (NEW IN V18)
+## CCW CSV GENERATION
 
 ### When to Generate CCW CSV
 - **ONLY when user explicitly requests it** — e.g., "generate CCW CSV", "make the import file", "CCW import"
@@ -1225,7 +1225,7 @@ Example: `CCW_Import_2570562000379811039_RAE_Products.csv`
 6. PRESENT file for download
 ```
 
-## CRM TASK MANAGEMENT (NEW IN V23)
+## CRM TASK MANAGEMENT
 
 ### Task Search
 
