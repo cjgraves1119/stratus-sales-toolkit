@@ -18,6 +18,7 @@ Optimized skill creation with **mandatory version comparison**, **automatic GitH
 | Standalone vs. plugin-member | Not differentiated | Explicit workflow split |
 | marketplace.json sync | Not included | Bumped alongside plugin.json on every push |
 | .skill file output | Not generated | Auto-generated after every push for one-click local install |
+| PAT guard clause | Not present | Checks for PAT before git ops; skips sync gracefully if missing |
 
 ## GitHub Sync Configuration
 
@@ -322,6 +323,25 @@ cp -r /home/claude/new-version /mnt/skills/user/new-version
 
 **Runs automatically after deploying any skill in the plugin list.** Skip for local-only skills.
 
+### ⚠️ PAT Guard — Check Before Any Git Operation
+
+Before attempting any GitHub sync step, verify that a GitHub Classic PAT exists in the user's Cowork preferences.
+
+```
+IF no PAT found in user preferences:
+  → STOP GitHub sync entirely
+  → Display this message:
+    "GitHub sync skipped — no PAT found in your Cowork preferences.
+     The skill has been deployed locally. To enable GitHub sync and
+     plugin distribution, add your GitHub Classic PAT to Cowork Settings
+     → Cowork preferences."
+  → Proceed directly to Step 6 (generate .skill file) so the user
+    still gets a local-installable output
+  → Do NOT attempt git clone, pull, or push
+```
+
+This guard exists because the stratus-sales-toolkit GitHub repo belongs to the plugin author (Chris Graves). Team members who install the plugin inherit this skill but should not push to that repo. A missing PAT is the natural signal that GitHub sync should be skipped — fail gracefully, not with a cryptic auth error.
+
 ### Step 1: Clone or Update Local Plugin Repo
 
 ```bash
@@ -521,6 +541,7 @@ FULL RELEASE (major changes):
 6. Generate .skill file → present_files (ALWAYS)
 
 GITHUB SYNC:
+0. CHECK FOR PAT — if not in preferences, skip to step 6 (local .skill only)
 1. git clone/pull the repo
 2. rm old skill folder, cp new one into skills/
 3. Apply manifest updates (plugin.json + marketplace.json + README.md) if folder name changed
@@ -538,7 +559,8 @@ GITHUB SYNC:
 - **Plugin version bump decision tree**: Patch for bug fixes, Minor for new features, Major for breaking changes. Requires user confirmation for Minor/Major.
 - **Folder name change detection**: Explicit rule — if version number is in folder name and changes, manifest update is required; versionless folder names skip manifest update
 - **marketplace.json sync**: `marketplace.json` (repo root) and `plugin.json` (plugin folder) must ALWAYS be bumped to the same version on every push. Missing `marketplace.json` breaks "update available" detection for all team members.
-- **.skill file auto-generation**: After every GitHub push, zip the updated skill folder as `{skill-name}.skill` and present with `present_files`. This ensures the skill exists both in the plugin (distributed via GitHub) AND as a standalone local install. Both copies are required for the skill to be accessible with or without the plugin active.
+- **.skill file auto-generation**: After every GitHub push (or sync skip), zip the updated skill folder as `{skill-name}.skill` and present with `present_files`. This ensures the skill exists both in the plugin (distributed via GitHub) AND as a standalone local install. Both copies are required for the skill to be accessible with or without the plugin active.
+- **PAT guard clause**: Before any git operation, check for a GitHub Classic PAT in Cowork preferences. If not found, skip all GitHub sync steps and display a clear message explaining why. Proceed directly to .skill file generation so the user still gets a local-installable output. This prevents team members who install the plugin from hitting a confusing auth error when trying to create skills — they get local-only mode automatically.
 - **Updated plugin skills list**: Reflects current accurate versions (daily-task-engine-v1-7, zoho-crm-v28, skill-creator-v9)
 - **GitHub REST API fallback**: Documents how to push files via REST API when Bash/git is unavailable (ENOSPC, EROFS)
 - **Plugin-aware summary tables**: Two table formats (folder changed vs. unchanged) for display before commit
