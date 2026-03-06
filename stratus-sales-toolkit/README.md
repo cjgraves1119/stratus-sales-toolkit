@@ -21,6 +21,7 @@ Sales operations plugin for Stratus Information Systems. Covers the full Cisco/M
 | **pharos-iq-automation** | PharosIQ lead-to-deal conversion with Zoho CRM |
 | **skill-creator-v9** | Skill authoring with plugin-aware mode — auto-updates plugin.json and README when skill folder names change |
 | **plugin-setup-guide** | Automatic user detection and MCP connection health check — guides setup of missing integrations required for skill operations |
+| **skill-downloader-v1-0** | Bulk export all plugin skills as .skill files for one-click install into standard Claude desktop sessions |
 
 ## Required Connectors
 
@@ -48,3 +49,4 @@ Skills activate on natural language triggers. Examples:
 - "Renew subscription" → ccw-subscription-renewal
 - "Lead time on MS425-32" → webex-bots (Commerce Bot)
 - "Process this sub mod file" → subscription-modification
+- "/UpdateSkills" or "download skills" → skill-downloader
