@@ -282,8 +282,8 @@ diff /mnt/skills/user/my-skill-v2-2/SKILL.md /home/claude/my-skill-v2-3/SKILL.md
 
 # 4. Deploy to skills folder
 # PLUGIN SKILLS: SKIP THIS STEP. Plugin skill folders are read-only (managed by the plugin system).
-#   Local install is handled by the .skill file generated in step 7.
-#   GitHub sync (step 6) copies directly from your working directory, not from /mnt/skills/user/.
+#   Local install is handled by the .skill file generated inside the GitHub Sync workflow (step 6, sub-step 4).
+#   GitHub sync copies directly from your working directory, not from /mnt/skills/user/.
 # NON-PLUGIN SKILLS ONLY:
 #   cp -r /home/claude/my-skill-v2-3 /mnt/skills/user/my-skill-v2-3
 
@@ -293,6 +293,7 @@ diff /mnt/skills/user/my-skill-v2-2/SKILL.md /home/claude/my-skill-v2-3/SKILL.md
 # See "Plugin-Aware Mode" section above
 
 # 6. GitHub Sync (if skill is in plugin list above)
+# → .skill file is generated BEFORE the push (sub-step 4), then committed
 # See "GitHub Sync Workflow" section below
 ```
 
@@ -312,8 +313,8 @@ find /home/claude/new-version -type f | sort
 
 # 3. Deploy to skills folder
 # PLUGIN SKILLS: SKIP THIS STEP. Plugin skill folders are read-only (managed by the plugin system).
-#   Local install is handled by the .skill file generated in step 6.
-#   GitHub sync (step 5) copies directly from your working directory, not from /mnt/skills/user/.
+#   Local install is handled by the .skill file generated inside the GitHub Sync workflow (step 5, sub-step 4).
+#   GitHub sync copies directly from your working directory, not from /mnt/skills/user/.
 # NON-PLUGIN SKILLS ONLY:
 #   cp -r /home/claude/new-version /mnt/skills/user/new-version
 
@@ -322,6 +323,7 @@ find /home/claude/new-version -type f | sort
 # See "Plugin-Aware Mode" section above
 
 # 5. GitHub Sync (if skill is in plugin list above)
+# → .skill file is generated BEFORE the push (sub-step 4), then committed
 # See "GitHub Sync Workflow" section below
 ```
 
@@ -343,7 +345,7 @@ IF no PAT found in user preferences:
      The skill has been deployed locally. To enable GitHub sync and
      plugin distribution, add your GitHub Classic PAT to Cowork Settings
      → Cowork preferences."
-  → Proceed directly to Step 6 (generate .skill file) so the user
+  → Proceed directly to Step 4 (generate .skill file) so the user
     still gets a local-installable output
   → Do NOT attempt git clone, pull, or push
 ```
@@ -386,7 +388,30 @@ cp -r /home/claude/new-skill-name-vY-Y skills/new-skill-name-vY-Y
 
 **This step is only required when the skill's folder name changed.** See Plugin-Aware Mode above for exact field locations and update format.
 
-### Step 4: Commit and Push
+### Step 4: Generate .skill File for Local Install
+
+Before pushing to GitHub, zip the updated skill folder as a `.skill` file and present it. This packages the local artifact first, then distributes via GitHub.
+
+```bash
+# Zip the skill folder with .skill extension (from cloned repo — already has updated files)
+cd /home/claude/stratus-sales-toolkit/stratus-sales-toolkit/skills
+zip -r /tmp/{skill-name}.skill {skill-name}/
+
+# Copy to outputs folder
+cp /tmp/{skill-name}.skill /mnt/outputs/{skill-name}.skill
+```
+
+Then use `present_files` to surface the file:
+
+```
+present_files([{ file_path: "/mnt/outputs/{skill-name}.skill" }])
+```
+
+This gives the user a "Copy to your skills" button so the skill exists both as a standalone local install AND in the plugin (via GitHub push in the next step). Both are required for the skill to be accessible with or without the plugin active.
+
+**Always generate the .skill file before pushing.** Do not skip this step even if the user doesn't explicitly ask for it.
+
+### Step 5: Commit and Push
 
 ```bash
 git add -A
@@ -399,35 +424,12 @@ Commit message convention:
 - New feature: `"Add inbox scan phase to daily-task-engine-v1-7"`
 - Version bump: `"Bump plugin to 1.2.2: daily-task-engine v1-6 → v1-7"`
 
-### Step 5: Verify
+### Step 6: Verify
 
 ```bash
 git log --oneline -1  # Confirm commit
 git status            # Should be clean
 ```
-
-### Step 6: Generate .skill File for Local Install
-
-After every successful push, zip the updated skill folder as a `.skill` file and present it so the user can click "Copy to your skills" to install it locally (independent of the plugin).
-
-```bash
-# Zip the skill folder with .skill extension
-cd /home/claude/stratus-sales-toolkit/stratus-sales-toolkit/skills
-zip -r /home/claude/{skill-name}.skill {skill-name}/
-
-# Copy to outputs folder
-cp /home/claude/{skill-name}.skill /mnt/outputs/{skill-name}.skill
-```
-
-Then use `present_files` to surface the file:
-
-```
-present_files([{ file_path: "/mnt/outputs/{skill-name}.skill" }])
-```
-
-This gives the user a "Copy to your skills" button so the skill exists both in the plugin (GitHub) and as a standalone local install. Both are required for the skill to be accessible with or without the plugin active.
-
-**Always generate the .skill file.** Do not skip this step even if the user doesn't explicitly ask for it.
 
 ### GitHub Sync Summary Table
 
@@ -445,9 +447,9 @@ GITHUB SYNC RESULTS:
 | marketplace.json bumped | ✓ 1.2.2 → 1.2.3 (or SKIPPED) |
 | plugin.json bumped | ✓ 1.2.2 → 1.2.3 (or SKIPPED) |
 | README.md updated | ✓ (or SKIPPED) |
+| .skill file generated | ✓ outputs/{skill-name}.skill |
 | Commit | ✓ (abc1234) |
 | Push to main | ✓ |
-| .skill file generated | ✓ outputs/{skill-name}.skill |
 | Plugin repo | github.com/cjgraves1119/stratus-sales-toolkit |
 ```
 
@@ -539,25 +541,27 @@ QUICK UPDATE (minor changes):
 3. Run version comparison (MANDATORY)
 4. PLUGIN SKILLS: SKIP (read-only folder). NON-PLUGIN: cp -r new-skill /mnt/skills/user/
 5. Plugin-aware mode check (if plugin skill)
-6. GitHub sync (if plugin skill) — copies from working dir, NOT /mnt/skills/user/
-7. Generate .skill file → present_files (ALWAYS)
+6. GitHub sync (if plugin skill):
+   → sub-step 4: zip → .skill file → present_files (BEFORE push)
+   → sub-step 5: git commit && push
 
 FULL RELEASE (major changes):
 1. Create/update skill folder
 2. Run version comparison (MANDATORY if updating)
 3. PLUGIN SKILLS: SKIP (read-only folder). NON-PLUGIN: cp -r to /mnt/skills/user/
 4. Plugin-aware mode check (if plugin skill)
-5. GitHub sync (if plugin skill) — copies from working dir, NOT /mnt/skills/user/
-6. Generate .skill file → present_files (ALWAYS)
+5. GitHub sync (if plugin skill):
+   → sub-step 4: zip → .skill file → present_files (BEFORE push)
+   → sub-step 5: git commit && push
 
 GITHUB SYNC:
-0. CHECK FOR PAT — if not in preferences, skip to step 6 (local .skill only)
+0. CHECK FOR PAT — if not in preferences, skip to step 4 (local .skill only)
 1. git clone/pull the repo
 2. rm old skill folder, cp new one into skills/
 3. Apply manifest updates (plugin.json + marketplace.json + README.md) if folder name changed
-4. git add -A && git commit && git push
-5. Display sync results table
-6. zip skill/ → outputs/{skill-name}.skill → present_files (ALWAYS)
+4. zip skill/ → outputs/{skill-name}.skill → present_files (ALWAYS)
+5. git add -A && git commit && git push
+6. Display sync results table
 ```
 
 ---
