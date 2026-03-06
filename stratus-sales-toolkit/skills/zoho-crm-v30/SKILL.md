@@ -1735,21 +1735,22 @@ After closing, always verify via re-fetch (`ZohoCRM_Get_Record` with Status chec
 10. **Task is REQUIRED** - Create follow-up task on every new deal (`$se_module: "Deals"`)
 11. **Generate URLs after creation** - Format: `https://crm.zoho.com/crm/org647122552/tab/{MODULE}/{ID}`
 12. **2-LETTER COUNTRY CODES** - Use "US" not "United States", "CA" not "Canada"
-13. **Valid_Till = Today + 30 days** - Calculate dynamically, never hardcode
-14. **CCW CSV** - Generate ONLY if user explicitly requests it
-15. **Contact_Name REQUIRED** - Every Quote must have Contact_Name; if Account has only one contact, auto-assign
-16. **Cisco_Billing_Term = "Prepaid Term"** - Always default to "Prepaid Term" on quotes
-17. **Shipping_Country = "US"** - Always populate Shipping_Country, default to "US"
-18. **PROMPT BEFORE REP UPDATE** - Never auto-update Lead_Source or Meraki_ISR; always ask first
-19. **NET_TERMS BEFORE PO CONVERSION** - Set Net_Terms on Quote BEFORE running LIVE_ConvertQuoteToSO; cannot change after
-20. **CANCEL PENDING PO FIRST** - If deal has existing PO and new one needed, cancel pending PO before creating new quote
-21. **HOT CACHE FALLBACK** - If "inactive product" error, search Products module for active product by Product_Code
-22. **CLAUDE CHAT SUBJECT** - Include searchable chat subject in notes: "Chat: {Account} quote for {products}"
-23. **QUOTE NOTE FORMAT** - Include products list in note (- Qty x SKU format)
-24. **ATOMIC TASK LIFECYCLE** - Send email → complete task → verify → create follow-up. Always sequential, never parallel
-25. **VERIFY TASK CLOSURE** - Always re-fetch task after updating Status to confirm completion
-26. **CASCADE PREVENTION** - Never batch Zoho and Zapier MCP calls in the same parallel block
-27. **DATE SCOPE** - Daily task review and close use Due_Date <= today only. FU30 gets 7-day lookahead. Never include future tasks in daily review
+13. **2-LETTER STATE CODES (CRITICAL)** - ALWAYS use USPS 2-letter abbreviations for US states in Billing_State and Shipping_State fields (e.g., "IA" not "Iowa", "CO" not "Colorado", "IL" not "Illinois"). Never write out the full state name. When address is sourced from web search or email signature, convert to abbreviation before writing to Zoho.
+14. **Valid_Till = Today + 30 days** - Calculate dynamically, never hardcode
+15. **CCW CSV** - Generate ONLY if user explicitly requests it
+16. **Contact_Name REQUIRED** - Every Quote must have Contact_Name; if Account has only one contact, auto-assign
+17. **Cisco_Billing_Term = "Prepaid Term"** - Always default to "Prepaid Term" on quotes
+18. **Shipping_Country = "US"** - Always populate Shipping_Country, default to "US"
+19. **PROMPT BEFORE REP UPDATE** - Never auto-update Lead_Source or Meraki_ISR; always ask first
+20. **NET_TERMS BEFORE PO CONVERSION** - Set Net_Terms on Quote BEFORE running LIVE_ConvertQuoteToSO; cannot change after
+21. **CANCEL PENDING PO FIRST** - If deal has existing PO and new one needed, cancel pending PO before creating new quote
+22. **HOT CACHE FALLBACK** - If "inactive product" error, search Products module for active product by Product_Code
+23. **CLAUDE CHAT SUBJECT** - Include searchable chat subject in notes: "Chat: {Account} quote for {products}"
+24. **QUOTE NOTE FORMAT** - Include products list in note (- Qty x SKU format)
+25. **ATOMIC TASK LIFECYCLE** - Send email → complete task → verify → create follow-up. Always sequential, never parallel
+26. **VERIFY TASK CLOSURE** - Always re-fetch task after updating Status to confirm completion
+27. **CASCADE PREVENTION** - Never batch Zoho and Zapier MCP calls in the same parallel block
+28. **DATE SCOPE** - Daily task review and close use Due_Date <= today only. FU30 gets 7-day lookahead. Never include future tasks in daily review
 28. **FOLLOW-UP 3 BUSINESS DAYS** - Default follow-up task due date is 3 business days out, skip weekends
 29. **TASK SEARCH: NO CONTAINS** - Use `starts_with` for Subject field searches, not `contains`
 30. **TASK SEARCH: NO DUE_DATE SORT** - Sort tasks client-side after retrieval; Zoho only supports id, Created_Time, Modified_Time

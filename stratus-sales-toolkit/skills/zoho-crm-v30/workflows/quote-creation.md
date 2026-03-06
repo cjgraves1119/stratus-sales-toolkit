@@ -202,7 +202,7 @@ Create the quote first, without Quoted_Items. This ensures a real Zoho record ex
   "Cisco_Billing_Term": "Prepaid Term",
   "Billing_Street": "{street - REQUIRED}",
   "Billing_City": "{city - REQUIRED}",
-  "Billing_State": "{state - REQUIRED}",
+  "Billing_State": "{2-letter state abbreviation - REQUIRED, e.g. IA not Iowa}",
   "Billing_Code": "{zip - REQUIRED}",
   "Billing_Country": "US",
   "Shipping_Country": "US"

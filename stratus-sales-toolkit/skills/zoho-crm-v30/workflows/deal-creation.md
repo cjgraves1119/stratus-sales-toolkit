@@ -114,7 +114,7 @@ If similar deal exists in active stage, confirm with user before creating duplic
   "Account_Name": "{Company Name}",
   "Billing_Street": "{street}",
   "Billing_City": "{city}",
-  "Billing_State": "{state}",
+  "Billing_State": "{2-letter state abbreviation, e.g. IA not Iowa}",
   "Billing_Code": "{zip}",
   "Billing_Country": "US"
 }

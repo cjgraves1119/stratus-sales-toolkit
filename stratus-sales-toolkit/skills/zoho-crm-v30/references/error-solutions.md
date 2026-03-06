@@ -65,6 +65,15 @@
 - Use `"US"` not `"United States"`
 - Use `"CA"` not `"Canada"`
 
+### "State written as full name instead of abbreviation"
+
+**Cause:** Address sourced from web search or email signature returned full state name (e.g., "Iowa" instead of "IA")
+
+**Fix:**
+- ALWAYS convert to 2-letter USPS abbreviation before writing to Zoho
+- Billing_State and Shipping_State must be 2-letter codes (e.g., "IA", "CO", "IL")
+- Never use full state names (e.g., "Iowa", "Colorado", "Illinois")
+
 ### "New dropdown value created"
 
 **Cause:** Passed value not in existing picklist
