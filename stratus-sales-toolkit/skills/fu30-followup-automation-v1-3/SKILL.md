@@ -7,16 +7,8 @@ description: "automates 30-day follow-up emails for closed deals with pipedream-
 
 Automates the workflow for sending 30-day post-sale check-in emails to customers. Includes atomic task lifecycle, cascade prevention, **embedded formatting rules**, **Pipedream-first send routing**, **tool UUID identification**, and **draft presentation rules**.
 
-## What's New in v1.3
+See CHANGELOG.md for what changed in each version.
 
-- **Pipedream-First Routing Clarity**: Pipedream (UUID `4804cd9a`) is ALWAYS Tier 1 primary in Cowork. Zapier (UUID `91a221c4`) is Tier 4 last resort only, burns credits.
-- **Tool UUID Identification**: Explicit UUID and parameter name mapping to prevent Pipedream/Zapier confusion
-- **Draft Presentation Rules**: Email body ends at closing line ("Best," or "How are things going so far?"). Signature is NEVER shown in draft preview; included only in the send instruction.
-- **Strengthened Successor Task Logic**: ALL FU30 emails that ask for feedback, mention invoices, or propose next steps require a follow-up task. Only skip for purely informational check-ins with no ask.
-- **Gmail Context for ALL Deals**: Gmail search is now recommended for all deals (not just $5k+) to catch recent support issues or project context
-- **Email Opt-Out Scope**: Zoho Email_Opt_Out only blocks Zoho CRM Mail (Tier 2). Pipedream and Zapier sends are NOT blocked by opt-out.
-- **Updated Companion Skills**: References zoho-crm-v27, zoho-crm-email-v3-5
-- All v1.2 atomic lifecycle, cascade prevention, 7-day lookahead, templates, embedded formatting, and error handling retained
 
 ## Quick Start
 
@@ -129,23 +121,13 @@ https://www.stratusinfosystems.com/invoicing/?inva={Grand_Total}&invn={Invoice_N
 
 ## Step 5: Generate Emails
 
-### Embedded Formatting Rules (INLINE, NO EXTERNAL SKILL READ NEEDED)
+### Voice & Style Rules
 
-Every FU30 email MUST follow these rules:
+**Canonical source:** `references/chris-email-voice-guide.md`
 
-```
-MANDATORY SPACING:
-- One blank line between EVERY paragraph
-- One blank line before signature block
-- No two content lines adjacent without a blank line
-
-STYLE RULES:
-- No em dashes (use commas, parentheses, or periods)
-- Use contractions naturally (I'll, you're, that's)
-- Keep paragraphs to 1-3 lines
-- Close with a question or next step prompt
-- Sound like a colleague, not a form letter
-```
+Every FU30 email MUST follow the canonical voice guide. Key reminders:
+- No em dashes. Blank line between every paragraph. End with question/CTA.
+- 1-3 line paragraphs. Contractions. Sound like a colleague, not a form letter.
 
 ### Draft Presentation Rules (CRITICAL)
 
@@ -477,7 +459,7 @@ After completion, provide:
 
 ## Companion Skills
 
-- zoho-crm-v27 (CRM operations, task lifecycle, cascade prevention, never-close-won, Gmail source of truth)
+- zoho-crm-v28 (CRM operations, task lifecycle, cascade prevention, never-close-won, Gmail source of truth)
 - zoho-crm-email-v3-5 (4-tier email routing, tool UUID identification, Pipedream-first, draft presentation rules)
 - cisco-rep-locator-v1-1 (rep lookup for ISR deal context)
 
@@ -492,47 +474,7 @@ After completion, provide:
 - NEVER parallelize send + task closure in the same API call block
 - NEVER skip the follow-up task for emails that ask for feedback or mention invoices
 
-## Changelog
 
-### v1.3 (Current)
+---
 
-- **Pipedream-First Routing Clarity**: Explicit 4-tier routing with UUID and parameter identification
-- **Tool UUID Identification**: Pipedream (4804cd9a, "instruction" singular) vs Zapier (91a221c4, "instructions" plural)
-- **Draft Presentation Rules**: Body ends at closing line, signature never in preview
-- **Strengthened Successor Task Logic**: Default to creating follow-up; only skip for purely generic check-ins
-- **Gmail Context for ALL Deals**: Recommended for all deals, mandatory for $5k+
-- **Email Opt-Out Scope**: Clarifies opt-out only blocks Zoho CRM Mail, not Pipedream/Zapier
-- **NEVER List**: 8 explicit anti-patterns to prevent recurring errors
-- **Updated Companion Skills**: References zoho-crm-v27, zoho-crm-email-v3-5
-- All v1.2 atomic lifecycle, cascade prevention, templates, embedded formatting, and error handling retained
-
-### v1.2
-
-- **Embedded Formatting Rules**: Spacing and style rules inline (no mid-workflow skill read needed)
-- **Signature Toggle**: Support for "no sig" requests
-- **Cowork Send Path**: Pipedream (primary), Zoho CRM Mail (fallback), user-choice escalation (Zapier or Gmail compose)
-- **Environment-Aware Routing**: Detects Chat vs Cowork and routes accordingly
-- **Business Day Calculator**: Embedded Python function
-- **Updated Companion Skills**: References zoho-crm-v26, zoho-crm-email-v3-3
-- All v1.1 atomic lifecycle, cascade prevention, templates, and error handling retained
-
-### v1.1
-
-- **Atomic Task Lifecycle**: Send -> complete -> verify -> follow-up (guaranteed sequential)
-- **Cascade Prevention**: Zoho CRM and Zapier MCP calls never in same parallel block
-- **7-Day Lookahead Enforcement**: Explicit date scope filtering with code example
-- **Zoho Search Fix**: `starts_with` for Subject field (not `contains`)
-- **Follow-Up Task Creation**: Conditional follow-up with business day calculation
-- **Expanded Trigger Phrases**: fu30s, 30-day check-in, post-sale check-in, etc.
-- **Updated Companion Skills**: References zoho-crm-v23, zoho-crm-email-v3-2
-- All v1.0 enrichment, templates, filtering, and error handling retained
-
-### v1.0
-
-- Initial release
-- FU30 task retrieval and enrichment
-- Active deal and unpaid invoice detection
-- Gmail context search for high-value deals
-- Email templates (renewal, hardware, high-value)
-- Opt-out handling with temporary disable/re-enable
-- Batch presentation and approval workflow
+See CHANGELOG.md for version history.

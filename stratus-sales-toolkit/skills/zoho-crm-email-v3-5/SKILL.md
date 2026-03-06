@@ -9,25 +9,7 @@ Pipedream-first email routing with **4-tier failover**, **draft presentation rul
 
 ---
 
-## What's New in v3.5
-
-- **DRAFT PRESENTATION RULES**: When presenting email drafts for approval, the body ends at the closing line ("Best," or "Thanks,"). Signature is NOT displayed in draft preview. Signature is included automatically in the send instruction only.
-- **PIPEDREAM MESSAGE ID SOURCING**: Thread reply message IDs MUST come from Pipedream's own available message list, NOT from Gmail MCP search results. If the target message has cycled out of Pipedream's list, send as a new email instead of attempting a broken thread reply.
-- **EMAIL OPT-OUT SCOPE**: Zoho contact Email_Opt_Out only blocks Zoho CRM Mail sends (Tier 2). It does NOT affect Pipedream (Tier 1) or Zapier (Tier 4) sends. No action needed to send via Pipedream when contact has opt-out enabled.
-- **TOOL UUID IDENTIFICATION TABLE**: Pipedream UUID `4804cd9a` uses `instruction` (SINGULAR), zero credits, always Tier 1. Zapier UUID `91a221c4` uses `instructions` (PLURAL), burns credits, Tier 4 only.
-- **STRENGTHENED SPACING**: Explicit blank-line-between-every-paragraph enforcement with validation checklist before every draft presentation.
-- **UPDATED COMPANION SKILLS**: References zoho-crm-v27, fu30-followup-automation-v1-3
-- All v3.4 Pipedream threading, 4-tier routing, style guide, and error handling retained
-
-## What's New in v3.4
-
-- **Pipedream Tier 1 for EVERYTHING**: Pipedream gmail-send-email is now the primary send path for both new emails AND thread replies across all environments. Thread replies confirmed working with proper In-Reply-To header threading (tested 2/27/2026).
-- **4-Tier Routing**: Pipedream (Tier 1) > Zoho CRM Mail (Tier 2, chat only) > Gmail compose link (Tier 3) > Zapier (Tier 4, credit-limited fallback)
-- **CRITICAL: Pipedream Parameter Bug**: Pipedream MCP schema advertises `instructions` (plural) but backend requires `instruction` (singular). ALWAYS use `instruction` (singular) for all Pipedream Gmail tool calls.
-- **Zapier Demoted to Tier 4**: Zapier credits are limited. Only use Zapier when all other tiers fail or are unavailable.
-- **Updated Companion Skills**: References zoho-crm-v26, fu30-followup-automation-v1-2
-- All v3.3 cascade prevention, style guide, spacing enforcement, and error handling retained
-
+See CHANGELOG.md for what changed in each version.
 ---
 
 ## CRITICAL: Tool UUID Identification (NEW IN V3.5)
@@ -293,56 +275,16 @@ Use this skill when:
 
 ---
 
-## Chris Graves Style Guide (Reference for All Drafts)
+## Chris Graves Style Guide
 
-Apply this guide every time an email is composed. The goal is to sound like a knowledgeable colleague, not a formal report.
+**Canonical source:** `references/chris-email-voice-guide.md`
 
-### Voice Principles
-
-- Friendly and confident, never stiff
-- Clear and skimmable first, detailed second
-- Assume good intent in every follow-up
-- Use contractions: I'll, you're, that's, we've
-- Ask for a specific next step in nearly every email
-- **Hard rule: never use em dashes. Use commas, parentheses, or periods instead.**
-
-### Tone Anchors
-
-- "For your convenience..." as a transition into links, steps, or details
-- "How does everything look?" as a closing prompt
-- "Let me know what you think" or "Upon review..." to invite a reply without pressure
-- "What has feedback been so far?" for soft follow-ups
-- Anchor urgency to real deadlines (promo end, renewal window, price increase)
-
-### Email Structure (Default Anatomy)
-
-1. Greeting (first name, exclamation if warm)
-2. 1 to 2 sentences of context (why you're writing now)
-3. The payload: answer, options, quote links, or bullets
-4. A single decision question (two short questions max)
-5. Close with full signature on external emails (unless user says "no sig")
-
-### Format Rules
-
-- Keep paragraphs to 1 to 3 lines
-- Use bullets for any list of more than 2 items
-- Use labeled options (Option A, Option B) when presenting choices
-- Put links on their own line when possible
-- Avoid giant pasted blocks unless it solves a problem
-- Add a blank line between every paragraph for readability
-
-### Subject Line Rules
-
-- Reply threads: keep the existing subject exactly, including ref tags and case numbers
-- New outreach: short and outcome-based ("Meraki renewal options for [Org]", "Quote options for [Model] and [Term]")
-
-### What to Avoid
-
-- Em dashes (never, under any circumstance)
-- Stiff or overly formal language
-- Long unbroken paragraphs
-- Starting with "I hope this email finds you well" or similar filler
-- Closing without asking for a next step
+Read the canonical voice guide for the full style rules. Key points enforced on every draft:
+- No em dashes. No filler openers. No AI-sounding phrases. No corporate buzzwords.
+- Blank line between every paragraph. Blank line before closing line.
+- End every email with a question or CTA.
+- 1-3 line paragraphs max. Contractions throughout.
+- Signature included only in send instruction, never in draft preview.
 
 ### Signature (External Emails)
 
@@ -350,9 +292,8 @@ Apply this guide every time an email is composed. The goal is to sound like a kn
 Chris Graves
 Regional Sales Director
 Stratus Information Systems
-415-326-3661
-chrisg@stratusinfosystems.com
-Sales & Logistics | Project Consulting | IT Management | Install & Config | Purchase Financing
+P: (949) 328-3655
+E: chrisg@stratusinfosystems.com
 ```
 
 ### Signature Toggle
@@ -841,55 +782,13 @@ x Present draft with two paragraphs touching without a blank line between them
 - read_gmail_thread (extract context, subject, message ID, recipients)
 
 **Companion Skills:**
-- zoho-crm-v27 (CRM operations, task lifecycle, cascade prevention, never-close-won)
+- zoho-crm-v28 (CRM operations, task lifecycle, cascade prevention, never-close-won)
 - license-renewal-email-v1-1 (renewal-specific workflows)
 - fu30-followup-automation-v1-3 (30-day follow-ups with atomic lifecycle, Pipedream-first)
 
 ---
 
-## Changelog
 
-### v3.5 (Current)
+---
 
-- **DRAFT PRESENTATION RULES**: Body ends at closing line, no signature in draft preview, signature auto-included in send instruction
-- **PIPEDREAM MESSAGE ID SOURCING**: Thread reply message IDs must come from Pipedream's own list, not Gmail MCP
-- **EMAIL OPT-OUT SCOPE**: Clarified that opt-out only affects Zoho CRM Mail (Tier 2), not Pipedream or Zapier
-- **TOOL UUID IDENTIFICATION TABLE**: Embedded UUID and parameter reference for Pipedream vs Zapier
-- **STRENGTHENED SPACING**: Explicit blank-line-between-every-paragraph enforcement with validation checklist
-- **UPDATED COMPANION SKILLS**: References zoho-crm-v27, fu30-followup-automation-v1-3
-- All v3.4 Pipedream threading, 4-tier routing, style guide retained
-
-### v3.4
-
-- **Pipedream Tier 1 for ALL emails**: Primary send path for new emails AND thread replies in all environments
-- **Proven thread reply support**: Pipedream threading confirmed working 2/27/2026 with In-Reply-To headers
-- **CRITICAL parameter bug documented**: Pipedream uses instruction (singular), not instructions (plural) despite schema
-- **4-Tier routing**: Pipedream > Zoho (chat) > Gmail compose > Zapier (limited credits)
-- **Zapier demoted to Tier 4**: Only used as last resort due to credit limitations
-- All v3.3 cascade prevention, style guide, spacing enforcement retained
-
-### v3.3
-
-- Cowork Mode: Pipedream Primary Send for new outbound emails
-- Zoho CRM Mail Fallback, Instructions-Only Format Documentation
-- Signature Toggle, Three-Tier Cowork Failover
-
-### v3.2
-
-- Cascade Prevention, Atomic Lifecycle Integration, One-at-a-Time Task Emails
-
-### v3.1
-
-- Environment-Aware Routing, Mandatory Line Spacing Enforcement
-
-### v3.0
-
-- Zapier Primary Send, Three-Tier Failover, Chris Graves Style Guide
-
-### v2.0
-
-- Threaded Reply Support, Dual Send Path, Batch Email Support
-
-### v1.0
-
-- Initial release with core ZohoCRM_Send_Mail documentation
+See CHANGELOG.md for version history.

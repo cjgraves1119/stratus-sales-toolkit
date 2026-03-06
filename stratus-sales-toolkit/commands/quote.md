@@ -9,7 +9,7 @@ Generate a Cisco/Meraki quote. Arguments: $ARGUMENTS
 
 ## Routing
 - No customer mentioned → use `stratus-quoting-bot-v4-5` (URL quote)
-- Customer mentioned → use `zoho-crm-v27` (Zoho Deal + Quote)
+- Customer mentioned → use `zoho-crm-v28` (Zoho Deal + Quote)
 - Subscription file uploaded or "sub mod/add-on" → use `subscription-modification-v2-6`
 
 ## SKU Validation (always run before quoting)

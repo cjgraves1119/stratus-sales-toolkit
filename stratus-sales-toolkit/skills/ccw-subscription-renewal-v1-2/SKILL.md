@@ -14,7 +14,7 @@ Automates the full Cisco Commerce Workspace (CCW) subscription renewal workflow 
 - **CONSOLIDATED JS EXTRACTION**: Quote Number + Deal ID extracted in a single JS call from confirmation page (was already in v1-1, now emphasized as mandatory first approach).
 - **CCRC DIRECT URL MANDATORY**: Direct URL navigation to ccrc.cisco.com/subscriptions/detail/{SubID} is the only path. CCW search fallback removed from primary flow (moved to error recovery only).
 - **WAIT OPTIMIZATION**: Replaced fixed wait times with JS-based readiness checks. Poll for DOM elements rather than waiting arbitrary seconds.
-- **UPDATED COMPANION SKILLS**: References zoho-crm-v26
+- **UPDATED COMPANION SKILLS**: References zoho-crm-v28
 - All v1-1 features retained
 
 ---
@@ -466,7 +466,7 @@ If `loading: true`, wait 2 seconds and re-poll. If `content: true` and `loading:
 - **CCRC direct URL mandatory:** CCW search removed from primary flow (error recovery only)
 - **Zero-screenshot transitions:** All page transitions verified via JS hash polling exclusively
 - **Batch input formats:** Support for multiple URLs or comma-separated IDs
-- **Updated companion skills:** References zoho-crm-v26
+- **Updated companion skills:** References zoho-crm-v28
 - All v1-1 features retained
 
 ### v1-1 (2026-02-24)

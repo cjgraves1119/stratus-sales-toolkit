@@ -1,0 +1,53 @@
+# Daily Task Engine Changelog
+
+### v1.8
+
+- **EMBEDDED VOICE/STYLE GUIDE IN SUB-AGENT PROMPT**: Full Chris Graves style guide now embedded inline in the sub-agent prompt. Includes: friendly/confident tone, sentence variety, contractions (I'll, you're, that's, we've), qualifying language, banned phrases (em dashes, filler openers, AI phrases), tone anchors ("How does everything look?", "What has feedback been so far?", "For your convenience..."), and email structure. Previously was a single line; now a full block.
+- **MANDATORY PARAGRAPH SPACING IN SUB-AGENT PROMPT**: Sub-agents explicitly required to place blank lines between every paragraph. Rule embedded alongside voice/style guide — both enforced at draft creation time.
+- **PHASE 3 PRE-PRESENTATION GATE**: New mandatory gate runs on all sub-agent email drafts before the approval table is built. Five checks: (1) paragraph spacing, (2) filler openers, (3) AI phrases, (4) em dashes, (5) closing CTA. Gate runs silently and corrects drafts before display.
+- **NEVER RULE ADDED**: "NEVER skip the Phase 3 pre-presentation gate."
+- All v1.7 features retained.
+
+### v1.7
+
+- **CANONICAL ZOHO QUERY**: Phase 1 hardcodes the correct query. Primary: `(Owner:equals:2570562000141711002)and(Due_Date:less_equal:{TODAY})and(Status:equals:Not Started)`. Fallback for INVALID_QUERY. Banned patterns documented (no `not_equals`, no missing owner filter).
+- **IR01 BATCH PRE-FILTER**: New Phase 1b step. IR01 auto-reminder tasks identified before sub-agent launch and batch-classified as NEEDS_REVIEW in a single approval table row. Prevents wasted sub-agent budget on noise tasks.
+- **SUB-AGENT VERBOSITY CAP**: Sub-agent prompt now ends with explicit VERBOSITY CAP — return ONLY the structured JSON object. No prose, no preamble, no narrative. Prevents context exhaustion before Phase 3 when evaluating 20+ tasks.
+- **DR01 CLOSED WON AUTO-CLOSE**: DR01 gate checks deal stage first. Closed (Won) or Closed (Lost) -> auto-close the task with a note, no email drafted, no successor created.
+- **COMPANION SKILLS UPDATED**: zoho-crm-v27 -> zoho-crm-v28.
+- **IR01_BATCH triage category**: Added to gate quick reference and NEVER rules.
+- All v1.6 features retained.
+
+### v1.6
+
+- REVISED DRAFT APPROVAL RULE: Full revised draft must be shown before sending any modified email.
+- REPLY-ALL THREAD ENFORCEMENT: gmail_read_thread required before any thread reply.
+- All v1.5 features retained.
+
+### v1.5
+
+- PARALLEL SUB-AGENT EVALUATION: All tasks evaluated simultaneously in one message block.
+- 5-PHASE WORKFLOW: Fetch -> Parallel eval -> Approval table -> Inbox scan -> Sequential execution.
+- INLINE EMAIL DRAFT PREVIEWS: Full email body shown in approval table.
+- CLICKABLE ZOHO CRM + GMAIL LINKS: All rows hyperlinked.
+- All v1.4 features retained.
+
+### v1.4
+
+- INBOX SCAN PHASE, 4 INBOX CATEGORIES, UNIFIED BATCH TABLE, DEDUPLICATION LOGIC.
+
+### v1.3
+
+- NEVER MANUALLY CLOSE WON, GMAIL AS SOURCE OF TRUTH, SUCCESSOR AFTER EVERY ACTION, PIPEDREAM/ZAPIER TOOL ID.
+
+### v1.2
+
+- Per-Task-Type Evaluation Gates, Batch Approval Table, Successor Task Enforcement, Business Day Calculator.
+
+### v1.1
+
+- Slim Trigger Router, 20+ trigger phrases.
+
+### v1.0
+
+- Initial release.

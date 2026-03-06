@@ -9,50 +9,7 @@ Trigger router with **parallel sub-agent evaluation**, **inline email draft prev
 
 ---
 
-## What's New in v1.8
-
-- **EMBEDDED VOICE/STYLE GUIDE IN SUB-AGENT PROMPT**: The sub-agent prompt now includes the full Chris Graves style guide inline — friendly/confident tone, sentence variety, contractions, qualifying language, banned phrases (em dashes, filler openers, AI phrases), tone anchors, and structure. Previously the prompt only had a single line: `(Chris Graves voice, no em dashes, 1-3 lines per paragraph, end with question or CTA)`.
-- **MANDATORY PARAGRAPH SPACING IN SUB-AGENT PROMPT**: Sub-agents are now explicitly required to put a blank line between every paragraph in email drafts. The spacing rule is embedded directly in the sub-agent prompt alongside the style guide — both are required, not just one.
-- **PHASE 3 PRE-PRESENTATION GATE**: Before building the approval table, a mandatory check runs on every email draft returned by sub-agents: (1) enforce blank lines between paragraphs, (2) strip filler openers and AI phrases, (3) verify ending is a question or CTA, (4) replace any em dashes. This catches spacing/style failures before the table is presented, regardless of sub-agent behavior.
-- All v1.7 features retained.
-
-## What's New in v1.7
-
-- **CANONICAL ZOHO QUERY**: Phase 1 now uses a hardcoded query with Status filter to eliminate all failed query attempts. Primary: `(Owner:equals:2570562000141711002)and(Due_Date:less_equal:{TODAY})and(Status:equals:Not Started)`. Fallback defined if Status filter unsupported. NEVER use `not_equals` operator. NEVER fetch without owner filter.
-- **IR01 BATCH PRE-FILTER**: Before launching sub-agents in Phase 2, scan all fetched tasks for the IR01 pattern. Batch-classify them as NEEDS_REVIEW in a single table row. Do NOT launch individual sub-agents for IR01 tasks — they are auto-generated noise and waste sub-agent budget.
-- **SUB-AGENT VERBOSITY CAP**: Sub-agent prompt template now includes explicit instruction to return ONLY the structured JSON object — no prose, no preamble, no narrative. Keeps each result under ~200 tokens and prevents context exhaustion before Phase 3.
-- **DR01 CLOSED WON AUTO-CLOSE**: DR01 gate now immediately auto-closes tasks where the linked deal is already Closed (Won) or Closed (Lost). No email drafted, no successor created. Previously, sub-agents would incorrectly propose post-close check-in emails for fulfilled deals.
-- **COMPANION SKILLS UPDATED**: Points to zoho-crm-v28 (product_name field fix for inactive inventory bypass).
-- All v1.6 features retained (revised draft approval rule, reply-all thread enforcement, parallel sub-agents, inline drafts, clickable links, 5-phase workflow, inbox scan, never-close-won, Gmail source of truth, successor enforcement, Pipedream/Zapier ID).
-
-## What's New in v1.6
-
-- **REVISED DRAFT APPROVAL RULE**: When a user requests any edits or modifications to a proposed email draft, the FULL REVISED draft must be presented for explicit user approval before sending.
-- **REPLY-ALL THREAD ENFORCEMENT**: Before sending ANY reply to an existing email thread, call `gmail_read_thread` to read the full thread and extract ALL recipients (To + CC) from the most recent message.
-- All v1.5 features retained.
-
-## What's New in v1.5
-
-- **PARALLEL SUB-AGENT EVALUATION**: All tasks evaluated simultaneously using the Task tool. One sub-agent per task, all launched in a single message block.
-- **INLINE EMAIL DRAFT PREVIEWS**: Approval table includes the full proposed email body for every actionable item.
-- **CLICKABLE ZOHO CRM LINKS**: Every task row includes hyperlinked Task, Deal, Contact, and Account links.
-- **CLICKABLE GMAIL THREAD LINKS**: Every inbox row includes direct Gmail thread links.
-- **5-PHASE WORKFLOW**: Phase 1 (fetch) -> Phase 2 (parallel sub-agent eval) -> Phase 3 (approval table) -> Phase 4 (inbox scan) -> Phase 5 (sequential execution).
-- All v1.4 features retained.
-
-## What's New in v1.4
-
-- **INBOX SCAN PHASE**: New phase scans Gmail inbox for actionable emails.
-- **4 INBOX CATEGORIES**: INBOX_REPLY, INBOX_NEW_TASK, INBOX_DEAL_UPDATE, INBOX_FYI.
-- **UNIFIED BATCH TABLE**: CRM tasks and inbox action items in one approval table.
-- All v1.3 features retained.
-
-## What's New in v1.3
-
-- **NEVER MANUALLY CLOSE WON**: DR01 gate checks for weborder before any close action.
-- **GMAIL AS SOURCE OF TRUTH**: All deal-linked task gates require Gmail search before proposing actions.
-- **SUCCESSOR AFTER EVERY ACTION**: All open/ongoing deals require a follow-up task after any action.
-- **PIPEDREAM/ZAPIER TOOL IDENTIFICATION**: UUID reference embedded.
+See CHANGELOG.md for what changed in each version.
 
 ---
 
@@ -63,12 +20,13 @@ Trigger router with **parallel sub-agent evaluation**, **inline email draft prev
 Triggers: /DailyTasks, "daily tasks", "review my tasks", "task review", "help me complete todays tasks", "morning tasks", "run my tasks", "lets do tasks", "whats on my plate", "knock out my tasks"
 
 What it does:
-1. Phase 1: Pull all open tasks owned by Chris Graves, due today or overdue (canonical query)
-2. Phase 1b: IR01 pre-filter — batch-classify IR01 tasks before sub-agent launch
-3. Phase 2: Launch one sub-agent per non-IR01 task simultaneously (Task tool, single message block)
-4. Phase 3: Pre-presentation gate (spacing + style check) → build unified approval table with clickable links, inline drafts, IR01 batch row
-5. Phase 4: Run Inbox Scan in parallel while user reviews approval table
-6. Phase 5: Execute approved actions sequentially (atomic task lifecycle)
+1. Phase 0: Google Calendar morning briefing — show today's meetings, attendees, and prep notes
+2. Phase 1: Pull all open tasks owned by Chris Graves, due today or overdue (canonical query)
+3. Phase 1b: IR01 pre-filter — batch-classify IR01 tasks before sub-agent launch
+4. Phase 2: Launch one sub-agent per non-IR01 task simultaneously (Task tool, single message block)
+5. Phase 3: Pre-presentation gate (spacing + style check) → build unified approval table with clickable links, inline drafts, IR01 batch row
+6. Phase 4: Run Inbox Scan in parallel while user reviews approval table
+7. Phase 5: Execute approved actions sequentially (atomic task lifecycle)
 
 Skills to load: zoho-crm-v28, zoho-crm-email-v3-5
 
@@ -98,9 +56,14 @@ Skills to load: zoho-crm-v28
 
 ---
 
-## 5-Phase Workflow
+## 6-Phase Workflow
 
 ### Overview
+
+PHASE 0: GOOGLE CALENDAR MORNING BRIEFING (~3s)
+  Fetch today's events from Google Calendar (gcal_list_events)
+  Present meeting overview: time, title, attendees, location/link
+  Flag any meetings with deal-linked contacts (cross-reference with Zoho task contacts)
 
 PHASE 1: FETCH + IR01 PRE-FILTER (~5s)
   Pull all open tasks from Zoho CRM using canonical query
@@ -125,6 +88,51 @@ PHASE 5: SEQUENTIAL EXECUTION
   send -> confirm -> close -> verify -> successor
   NEVER parallelize execution steps
   NEVER batch Zoho CRM + Pipedream/Zapier in same parallel block
+
+---
+
+## Phase 0: Google Calendar Morning Briefing
+
+Before pulling CRM tasks, fetch today's calendar to give Chris a quick overview of the day.
+
+### Step 1: Fetch Today's Events
+
+Use `gcal_list_events` with:
+- `calendarId`: "primary"
+- `timeMin`: today at 00:00:00 (local time, RFC3339)
+- `timeMax`: today at 23:59:59 (local time, RFC3339)
+- `timeZone`: "America/Los_Angeles"
+- `condenseEventDetails`: false (need attendees)
+
+### Step 2: Present Calendar Overview
+
+Display a compact briefing table:
+
+```
+📅 TODAY'S CALENDAR — {Day, Month Date, Year}
+
+| Time | Meeting | Attendees | Link |
+|------|---------|-----------|------|
+| 9:00 AM - 9:30 AM | Team Standup | 4 attendees | [Join](meet_link) |
+| 11:00 AM - 12:00 PM | Acme Corp Demo | John Smith, Sarah Lee | [Join](meet_link) |
+| 2:00 PM - 2:30 PM | Cisco 1:1 w/ Rep Name | rep@cisco.com | [Join](meet_link) |
+
+{N} meetings today. {free_time_note}
+```
+
+### Step 3: Flag Deal-Linked Meetings
+
+If any meeting attendee email matches a contact from the CRM task list (fetched in Phase 1), flag it:
+
+```
+⚡ Deal overlap: Your 11:00 AM meeting with John Smith (Acme Corp) has an open task due today.
+```
+
+This cross-reference happens AFTER Phase 1 completes. Display the flag inline with the approval table in Phase 3 if applicable.
+
+### Step 4: No-Meeting Shortcut
+
+If no events today, display: "📅 No meetings today — clear calendar for task focus." and proceed directly to Phase 1.
 
 ---
 
@@ -224,31 +232,10 @@ STEPS:
 4. Determine proposed action
 5. If action = send email: draft the full email body using ALL rules below
 
-VOICE & STYLE (MANDATORY — apply to every email draft):
-- Friendly and confident, never stiff. Sound like a knowledgeable colleague, not a formal report.
-- Vary sentence structure; mix short and long sentences naturally.
-- Use contractions throughout: I'll, you're, that's, we've, can't, won't.
-- 1-3 lines per paragraph MAX. No long unbroken paragraphs.
-- NEVER use em dashes. Use commas, parentheses, or periods instead.
-- NEVER open with filler: "I hope this email finds you well" or any similar opener.
-- NEVER use AI-sounding phrases: "As an AI," "I'm delighted," "Here is," "In conclusion," "Dive into," "Certainly."
-- Minimize bolding and bullet lists; favor prose. Use bullets only for 3+ parallel items.
-- Qualifying language where appropriate: "it seems," "perhaps," "looks like."
-- Assume good intent in every follow-up.
-- End every draft with a question or specific CTA — never close with a plain statement.
-- Tone anchors (use naturally, don't force): "How does everything look?", "What has feedback been so far?", "For your convenience..."
-
-SPACING (MANDATORY — validate before returning draft):
-- Blank line between EVERY paragraph — no exceptions.
-- Blank line before the closing line ("Thanks," or "Best,").
-- No two content paragraphs may be adjacent without a blank line.
-
-EMAIL STRUCTURE:
-1. Greeting (first name, exclamation if warm)
-2. 1-2 sentences of context (why you're writing now)
-3. The payload: answer, options, quote links, or bullets
-4. Single decision question or CTA (two short questions max)
-5. Closing line ("Thanks," or "Best,") — signature is handled separately, do not include it
+VOICE, STYLE, SPACING, EMAIL STRUCTURE:
+Follow the voice guide embedded in the task-evaluator agent definition exactly.
+Canonical source: references/chris-email-voice-guide.md
+Key reminders: no em dashes, blank line between every paragraph, end with question/CTA, no filler openers, no signature in draft.
 
 RETURN structured result:
 {
@@ -342,6 +329,17 @@ No separate display is needed — the gate runs silently. If a draft required co
 ---
 
 ## Phase 3: Approval Table Format
+
+### Hyperlink Enforcement (MANDATORY)
+
+Every entity reference in the approval table MUST be a clickable hyperlink. Never display a plain-text name when a URL is available. Required links per row:
+- Task subject → `zoho_task_url`
+- Account name → `zoho_account_url`
+- Deal name → `zoho_deal_url`
+- Contact name → `zoho_contact_url`
+- Gmail thread → `gmail_thread_url`
+
+If any sub-agent returns a row missing a URL field (e.g., `zoho_account_url` is null), construct it from the record ID: `https://crm.zoho.com/crm/org647122552/tab/{Module}/{record_id}`. If the record ID is also missing, display the name as plain text with a "(no link)" note.
 
 Every row must follow this structure:
 
@@ -627,56 +625,7 @@ due_date = add_business_days(today, 3)
 
 ---
 
-## Changelog
 
-### v1.8 (Current)
+---
 
-- **EMBEDDED VOICE/STYLE GUIDE IN SUB-AGENT PROMPT**: Full Chris Graves style guide now embedded inline in the sub-agent prompt. Includes: friendly/confident tone, sentence variety, contractions (I'll, you're, that's, we've), qualifying language, banned phrases (em dashes, filler openers, AI phrases), tone anchors ("How does everything look?", "What has feedback been so far?", "For your convenience..."), and email structure. Previously was a single line; now a full block.
-- **MANDATORY PARAGRAPH SPACING IN SUB-AGENT PROMPT**: Sub-agents explicitly required to place blank lines between every paragraph. Rule embedded alongside voice/style guide — both enforced at draft creation time.
-- **PHASE 3 PRE-PRESENTATION GATE**: New mandatory gate runs on all sub-agent email drafts before the approval table is built. Five checks: (1) paragraph spacing, (2) filler openers, (3) AI phrases, (4) em dashes, (5) closing CTA. Gate runs silently and corrects drafts before display.
-- **NEVER RULE ADDED**: "NEVER skip the Phase 3 pre-presentation gate."
-- All v1.7 features retained.
-
-### v1.7
-
-- **CANONICAL ZOHO QUERY**: Phase 1 hardcodes the correct query. Primary: `(Owner:equals:2570562000141711002)and(Due_Date:less_equal:{TODAY})and(Status:equals:Not Started)`. Fallback for INVALID_QUERY. Banned patterns documented (no `not_equals`, no missing owner filter).
-- **IR01 BATCH PRE-FILTER**: New Phase 1b step. IR01 auto-reminder tasks identified before sub-agent launch and batch-classified as NEEDS_REVIEW in a single approval table row. Prevents wasted sub-agent budget on noise tasks.
-- **SUB-AGENT VERBOSITY CAP**: Sub-agent prompt now ends with explicit VERBOSITY CAP — return ONLY the structured JSON object. No prose, no preamble, no narrative. Prevents context exhaustion before Phase 3 when evaluating 20+ tasks.
-- **DR01 CLOSED WON AUTO-CLOSE**: DR01 gate checks deal stage first. Closed (Won) or Closed (Lost) -> auto-close the task with a note, no email drafted, no successor created.
-- **COMPANION SKILLS UPDATED**: zoho-crm-v27 -> zoho-crm-v28.
-- **IR01_BATCH triage category**: Added to gate quick reference and NEVER rules.
-- All v1.6 features retained.
-
-### v1.6
-
-- REVISED DRAFT APPROVAL RULE: Full revised draft must be shown before sending any modified email.
-- REPLY-ALL THREAD ENFORCEMENT: gmail_read_thread required before any thread reply.
-- All v1.5 features retained.
-
-### v1.5
-
-- PARALLEL SUB-AGENT EVALUATION: All tasks evaluated simultaneously in one message block.
-- 5-PHASE WORKFLOW: Fetch -> Parallel eval -> Approval table -> Inbox scan -> Sequential execution.
-- INLINE EMAIL DRAFT PREVIEWS: Full email body shown in approval table.
-- CLICKABLE ZOHO CRM + GMAIL LINKS: All rows hyperlinked.
-- All v1.4 features retained.
-
-### v1.4
-
-- INBOX SCAN PHASE, 4 INBOX CATEGORIES, UNIFIED BATCH TABLE, DEDUPLICATION LOGIC.
-
-### v1.3
-
-- NEVER MANUALLY CLOSE WON, GMAIL AS SOURCE OF TRUTH, SUCCESSOR AFTER EVERY ACTION, PIPEDREAM/ZAPIER TOOL ID.
-
-### v1.2
-
-- Per-Task-Type Evaluation Gates, Batch Approval Table, Successor Task Enforcement, Business Day Calculator.
-
-### v1.1
-
-- Slim Trigger Router, 20+ trigger phrases.
-
-### v1.0
-
-- Initial release.
+See CHANGELOG.md for version history.

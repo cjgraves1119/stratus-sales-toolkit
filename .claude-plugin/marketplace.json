@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Stratus Information Systems sales operations toolkit for Cisco/Meraki quoting, Zoho CRM automation, and deal lifecycle workflows",
-    "version": "1.2.6"
+    "version": "1.2.7"
   },
   "plugins": [
     {
       "name": "stratus-sales-toolkit",
       "source": "./stratus-sales-toolkit",
       "description": "Cisco/Meraki quoting, Zoho CRM automation, task management, and deal lifecycle workflows",
-      "version": "1.2.6",
+      "version": "1.2.7",
       "author": {
         "name": "Chris Graves",
         "email": "chrisg@stratusinfosystems.com"

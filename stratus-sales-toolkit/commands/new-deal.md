@@ -7,7 +7,7 @@ argument-hint: "<company name> [amount] [stage]"
 
 Create a new deal in Zoho CRM. Arguments: $ARGUMENTS
 
-Follow the `zoho-crm-v27` skill. Required fields: Deal Name, Account, Stage, Lead Source, Meraki ISR, Close Date, Amount.
+Follow the `zoho-crm-v28` skill. Required fields: Deal Name, Account, Stage, Lead Source, Meraki ISR, Close Date, Amount.
 
 ## Rules
 - NEVER use Lead_Source = "-None-" — ask if not clear

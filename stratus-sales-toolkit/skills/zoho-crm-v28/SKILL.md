@@ -5,61 +5,7 @@ description: "zoho crm with product_name field fix for inactive inventory bypass
 
 # Zoho CRM v28 (Product_Name Fix + Never Close Won + Weborder Check + Gmail Source of Truth)
 
-## What's New in v28
-- **PRODUCT_NAME FIELD FIX (CRITICAL)**: When adding line items to Quotes or Sales Orders via API, ALWAYS use `Product_Name: {"id": "..."}` instead of `product: {"id": "..."}`. The `product` field triggers Zoho's inventory active check and rejects products with negative stock quantities even when `Product_Active = true`. `Product_Name` bypasses this check while correctly linking the product record. Applies to ALL quote/SO line item operations.
-- **DISCOUNT IS DOLLAR AMOUNT**: The `Discount` field on Quoted_Items accepts a **dollar amount**, not a percentage. To price at $138 with list $201, set `Discount: 63`. Unit_Price cannot be overridden via API — use Discount to achieve target pricing.
-- All v27 features retained
-
-## What's New in v27
-- **NEVER MANUALLY CLOSE WON**: Deals are NEVER manually set to Closed Won by Claude. Deals auto-close when a completed PO (Sales_Order) is attached. If a deal appears fulfilled but is not Closed Won, check for a weborder and use weborder-to-deal-automation skill to properly associate.
-- **WEBORDER CHECK FOR SHIPPED DEALS**: When a deal shows as shipped/fulfilled but Stage is still active, search Sales_Orders for a weborder. If found, route through weborder-to-deal-automation-v1-1 to properly link PO to deal (which triggers auto-close).
-- **SUCCESSOR TASK AFTER EVERY ACTION**: ALL open/ongoing deals always require a follow-up task for next steps after any action (email sent, task closed, quote created). Only skip successor if engagement should genuinely end (deal is Closed Lost, informational FU30 with no ask).
-- **GMAIL AS SOURCE OF TRUTH**: Never rely solely on Zoho Last_Activity_Time for deal evaluation. Always search Gmail for actual last contact with customer before proposing actions on deal-linked tasks.
-- **PIPEDREAM/ZAPIER TOOL IDENTIFICATION**: Pipedream UUID `4804cd9a` uses parameter `instruction` (SINGULAR), zero credits, always Tier 1. Zapier UUID `91a221c4` uses parameter `instructions` (PLURAL), burns credits, Tier 4 only. Never confuse the two.
-- **UPDATED COMPANION SKILLS**: References daily-task-engine-v1-3, zoho-crm-email-v3-5, fu30-followup-automation-v1-3
-- All v26 features retained
-
-## What's New in v26
-- **PRE-CLOSE DEAL VALIDATION**: Before closing ANY task linked to a Deal, fetch the deal's current Stage and Amount. If deal is in an active stage, evaluate whether closing the task is appropriate or if a successor is needed.
-- **SUCCESSOR TASK ENFORCEMENT**: Never close a task on an active deal (Qualification, Proposal/Negotiation, Verbal Commit/Invoicing) without confirming an open successor task exists. If none exists, create one before closing.
-- **PICKLIST PROTECTION STRENGTHENED**: Added explicit banned-value list. "Closed Lost" (no parens) and "Referral" (double R) are specifically called out as invalid. Live validation mandatory for all Stage writes.
-- **EVALUATION GATE INTEGRATION**: Task closure now requires passing through the task-type evaluation gate defined in daily-task-engine-v1-2 before any status change.
-- **UPDATED COMPANION SKILLS**: References daily-task-engine-v1-2, zoho-crm-email-v3-3, fu30-followup-automation-v1-2
-- All v25 features retained
-
-## What's New in v25
-- **STAGE LOCK**: NEVER update Deal Stage unless user EXPLICITLY says to close. Default to "Qualification" on creation only. No mid-workflow stage changes.
-- **CLOSE ONLY STAGE**: When closing, only ever use "Closed (Lost)" from the live picklist. Use live API validation to get exact value. Never hardcode or create new options.
-- **LEAD SOURCE DEFAULT**: Default to "Stratus Referal" for 99.9% of deals. Only switch to "Meraki ISR Referal" if a Cisco rep is explicitly named or clearly implied in the prompt.
-- **CISCO REP POST-CREATION PROMPT**: After deal/quote created, ALWAYS ask: "Is there a Cisco rep involved? If so I can update the deal with their info." Do not block creation waiting for this answer.
-- **DEAL CREATION PROCEED-FIRST**: Create deals with Stratus Referal + Stratus Sales defaults. Ask about Cisco rep after, not before.
-- All v24 features retained
-
-## What's New in v24
-- **CCW INCENTIVE: JS-FIRST DEAL ID EXTRACTION**: Use `javascript_tool` to pull CCW_Deal_Number instantly before falling back to screenshot/read_page
-- **CCW INCENTIVE: COORDINATE-BASED SEARCH**: Search bar at (330, 29), magnifying glass at (408, 61). Enter key does NOT trigger CCW search — must click icon
-- **CCW INCENTIVE: RADIO BUTTON FIX**: `form_input` and element refs do NOT reliably select radio buttons in CCW. "No" radio MUST use coordinate click (~148, 630)
-- **CCW INCENTIVE: SUBMIT FALLBACK**: If "Submit Quote for Approval" first click misses, scroll down and click at coordinate (530, 299)
-- **CCW INCENTIVE: PERFORMANCE OPTIMIZATIONS**: Clarified that text/textarea = form_input with ref (reliable), radio buttons = coordinate clicks (required)
-- All v23 features retained
-
-## What's New in v23
-- **CRM TASK MANAGEMENT**: Full task lifecycle rules for daily task review workflows
-- **ATOMIC TASK LIFECYCLE**: Send email → complete task → verify via re-fetch → create follow-up (guaranteed sequence, never parallel)
-- **CASCADE PREVENTION**: Never batch Zoho CRM and Zapier MCP calls in the same parallel block (sibling error cascade)
-- **ZOHO SEARCH GOTCHAS**: Documented production-learned search limitations (starts_with, no Due_Date sort, word search)
-- **TASK TRIAGE CATEGORIES**: Pattern matching rules for auto-categorizing tasks (AUTO_CLOSE, FU30_EMAIL, DEAL_FOLLOWUP, etc.)
-- **DATE SCOPE ENFORCEMENT**: /DailyTasks and /CloseTasks = today + past due ONLY; FU30 gets 7-day lookahead
-- **FOLLOW-UP TASK RULES**: 3 business days default, conditional creation logic, weekend skip
-- **TRIGGER PHRASES**: Expanded natural language triggers in description for auto-matching
-- All v22 features retained
-
-## What's New in v21
-- **LIVE SKU LOOKUP**: Hot cache removed entirely. Product IDs fetched via live batched Zoho search after quote shell is created.
-- **SHELL-FIRST QUOTE CREATION**: Deal and Quote shell created BEFORE SKU lookup. If SKU lookup fails, a real record exists in Zoho for manual recovery.
-- **BATCH SKU SEARCH**: All SKUs looked up in a single API call using OR criteria. Variant fallback (e.g. -3Y vs -3YR) auto-handled if first search returns empty.
-- **SKU PATCH STEP**: Line items added via a separate Update call after shell creation, once product IDs are confirmed.
-- All v20 features retained
+See CHANGELOG.md for what changed in each version.
 
 ## LIVE DEAL STAGE VALIDATION (CRITICAL - NEW IN V20)
 
@@ -246,12 +192,12 @@ def add_business_days(start_date, days):
 
 ### Evaluation Gate Integration
 
-Task closure now requires passing through the per-task-type evaluation gate defined in daily-task-engine-v1-2. The gate determines the correct action for each task type BEFORE any status change.
+Task closure now requires passing through the per-task-type evaluation gate defined in daily-task-engine-v1-8. The gate determines the correct action for each task type BEFORE any status change.
 
 ```
 TASK CLOSURE SEQUENCE:
 1. Identify task type from Subject pattern
-2. Run evaluation gate (per daily-task-engine-v1-2)
+2. Run evaluation gate (per daily-task-engine-v1-8)
 3. If gate says "close": run pre-close deal validation
 4. If active deal: check/create successor task
 5. Close task
@@ -1459,7 +1405,7 @@ After closing, always verify via re-fetch (`ZohoCRM_Get_Record` with Status chec
 31. **APPROVAL BEFORE CLOSE** - Present auto-closable tasks for user approval before closing. Never auto-close silently
 32. **PRE-CLOSE DEAL CHECK** - Before closing any deal-linked task, fetch the deal and check its stage. Active deals require successor task enforcement
 33. **SUCCESSOR TASK ENFORCEMENT** - Never close a task on an active deal without confirming or creating a successor open task
-34. **EVALUATION GATE REQUIRED** - Every task must pass its type-specific evaluation gate (per daily-task-engine-v1-2) before any status change
+34. **EVALUATION GATE REQUIRED** - Every task must pass its type-specific evaluation gate (per daily-task-engine-v1-8) before any status change
 35. **BANNED PICKLIST VALUES** - "Closed Lost" (no parens), "Referral" (double R), "Closed-Won" (hyphen) are banned. Live validate before writing
 36. **NEVER MANUALLY CLOSE WON** - Deals auto-close when completed PO is attached. If deal appears fulfilled but not Closed Won, check for weborder and use weborder-to-deal-automation skill
 37. **GMAIL BEFORE ACTIONS** - Always search Gmail for actual last contact with customer before proposing actions on deal-linked tasks. Zoho Last_Activity_Time is not reliable for customer engagement
@@ -1633,134 +1579,7 @@ NEVER DO:
 ✗ Use percentage string for Discount — always use dollar amount (List×Qty - Target)
 ```
 
-## Changelog
 
-### v28 (Current)
-- **PRODUCT_NAME FIELD FIX**: Always use `Product_Name: {"id": "..."}` for line items, never `product: {"id": "..."}`. The `product` field triggers Zoho inventory active check and fails on products with negative stock quantities (even when Product_Active = true). `Product_Name` bypasses this check while correctly linking the product record. Applies to ALL quote/SO line item operations
-- **DISCOUNT IS DOLLAR AMOUNT**: The `Discount` field on Quoted_Items accepts dollar amounts, not percentages. Formula: `Discount = (List_Price × Quantity) - Target_Sell_Price`. Example: List $201, target $138 → `Discount: 63`
-- **HOT CACHE PATH UPDATED**: References updated to `/mnt/skills/user/zoho-crm-v28/data/hot-cache.json`
-- **2 NEW CRITICAL RULES**: Rules 41 (Product_Name not product) and 42 (Discount is dollar amount) added
-- All v27 features retained
+---
 
-### v27
-- **NEVER MANUALLY CLOSE WON**: Deals auto-close when completed PO (Sales_Order) is attached. Claude never sets Stage to Closed Won manually
-- **WEBORDER CHECK**: When deal appears fulfilled but not Closed Won, search for weborder and route through weborder-to-deal-automation-v1-1 for proper association
-- **SUCCESSOR AFTER EVERY ACTION**: All open/ongoing deals require follow-up task after any action. Only skip if engagement should genuinely end
-- **GMAIL AS SOURCE OF TRUTH**: Always search Gmail for actual last contact before proposing actions on deal-linked tasks. Zoho Last_Activity_Time is supplementary only
-- **PIPEDREAM/ZAPIER TOOL ID**: Embedded UUID and parameter name reference to prevent tool confusion
-- **6 NEW CRITICAL RULES**: Never close won, Gmail before actions, successor after every action, Pipedream vs Zapier, weborder check (rules 36-40)
-- **UPDATED COMPANION SKILLS**: References daily-task-engine-v1-3, zoho-crm-email-v3-5, fu30-followup-automation-v1-3
-- All v26 features retained
-
-### v26
-- **PRE-CLOSE DEAL VALIDATION**: Fetch deal stage before closing any deal-linked task. Active deals require successor check
-- **SUCCESSOR TASK ENFORCEMENT**: Active deals must have at least one open task. Create successor before closing if none exist
-- **PICKLIST PROTECTION STRENGTHENED**: Explicit banned-value list with correct alternatives. "Closed Lost" → "Closed (Lost)", "Referral" → "Referal"
-- **EVALUATION GATE INTEGRATION**: Task closure requires passing through type-specific evaluation gate from daily-task-engine-v1-2
-- **BUSINESS DAY CALCULATOR**: Embedded Python function for weekend-skipping date math
-- **5 NEW CRITICAL RULES**: Pre-close deal check, successor enforcement, evaluation gates, banned picklist values (rules 32-35)
-- **UPDATED COMPANION SKILLS**: References daily-task-engine-v1-2, zoho-crm-email-v3-3, fu30-followup-automation-v1-2
-- All v25 features retained
-
-### v25
-- **STAGE LOCK**: Never update Deal Stage mid-workflow. Only allowed change is closing (uses live-validated "Closed (Lost)" value only)
-- **NO NEW STAGE OPTIONS**: Always run ZohoCRM_Get_Field live lookup before any stage change. Never hardcode or create new values
-- **LEAD SOURCE DEFAULT**: Stratus Referal is the default for 99.9% of deals. No pre-creation prompt needed
-- **MERAKI_ISR DEFAULT**: Stratus Sales by default. Only change if Cisco rep explicitly in prompt
-- **PROCEED-FIRST WORKFLOW**: Create deal/quote immediately with defaults, then ask about Cisco rep post-creation
-- **POST-CREATION REP PROMPT**: After every deal/quote creation, ask: "Is there a Cisco rep involved? I can update the record with their info."
-- All v24 features retained
-
-### v24 (Previous)
-- **CCW INCENTIVE OVERHAUL**: Section rewritten with production-validated coordinate patterns from live submission (Deal 83551548)
-- **JS-FIRST DEAL ID EXTRACTION**: `javascript_tool` query for CCW_Deal_Number before any screenshot or read_page
-- **COORDINATE-BASED CCW SEARCH**: Search bar (330, 29), magnifying glass (408, 61). Enter key confirmed non-functional in CCW
-- **RADIO BUTTON FIX**: Removed incorrect guidance to use form_input/refs for radio buttons. "No" radio now uses coordinate click (~148, 630) with screenshot confirmation
-- **SUBMIT FALLBACK**: Added coordinate (530, 299) as fallback if "Submit Quote for Approval" misses on first click
-- **PERFORMANCE SECTION UPDATED**: Clarified text/textarea = form_input + ref, radio buttons = coordinate clicks (required distinction)
-- **EXPANDED ERROR RECOVERY**: 9-row error table with confirmed recovery patterns for all known CCW failure modes
-- All v23 features retained
-
-### v23
-- **CRM TASK MANAGEMENT**: Full task lifecycle rules folded in from daily-task-engine orchestrator
-- **ATOMIC TASK LIFECYCLE**: Send → complete → verify → follow-up in guaranteed sequence
-- **CASCADE PREVENTION**: Never batch Zoho + Zapier in same parallel block
-- **ZOHO SEARCH GOTCHAS**: starts_with for Subject, no Due_Date sort, no word search
-- **TRIAGE CATEGORIES**: AUTO_CLOSE, FU30_EMAIL, DEAL_FOLLOWUP, ISR_CHECKIN, QUOTE_ACTION, NEEDS_REVIEW
-- **DATE SCOPE**: Daily review/close = today + past due only; FU30 = 7-day lookahead
-- **FOLLOW-UP RULES**: 3 business days, weekend skip, conditional on email content
-- **TRIGGER PHRASES**: Expanded description for better natural language matching
-- All v22 features retained
-
-### v22
-- **ADMIN ACTIONS VIA API**: Admin_Action is a writable trigger field on Quotes. Set value = action name, wait 5s, verify __Done suffix. All 4 actions executable by Claude directly. NEVER defer to UI.
-- All v21 features retained
-
-### v21
-- **HOT CACHE REMOVED**: Product IDs now resolved via live batched Zoho Products search instead of local cache
-- **SHELL-FIRST QUOTE CREATION**: Deal and Quote shell created BEFORE SKU lookup; ensures a recoverable Zoho record exists if lookup fails
-- **BATCH SKU SEARCH**: All SKUs in a single OR-criteria API call regardless of line item count
-- **VARIANT FALLBACK**: Auto-retry with alternate suffix (-3Y vs -3YR) if initial SKU search returns empty
-- **SKU PATCH STEP**: Line items added via Update call after shell confirmed created
-- All v20 features retained
-
-### v20
-- **LIVE STAGE VALIDATION**: Deal Stage values verified via ZohoCRM_Get_Fields API before any create/update (replaces hardcoded list)
-- **CCW INCENTIVE AUTO-SUBMIT**: Full workflow for submitting deal incentive justification in Cisco Commerce
-- **CHROME EXTENSION INTEGRATION**: Documents `submit-deal-incentive` shortcut for automated CCW submissions
-- **SILENT PICKLIST FIX**: Prevents Zoho from silently creating invalid dropdown options
-- All v19 features retained
-
-### v19
-- **MANDATORY PICKLIST VALIDATION**: All Deal Stage and Lead_Source values must match exact valid options before create/update
-- **AUTO-CORRECTION MAP**: Common typos auto-corrected (e.g., "closed lost" → "Closed Lost")
-- **VALIDATION GATE**: Claude must verify picklist values against whitelist before any Zoho API call
-
-### v18
-- **CCW CSV GENERATION**: Auto-generate CCW import CSV with correct 8-column format
-  - Co-term quotes: Leave term columns empty
-  - Subscription quotes: Include parent SKU + term info (36/12/Prepaid Term)
-  - Filename format: CCW_Import_{Quote_Number}_{Account}.csv
-- **CLAUDE CHAT SUBJECT**: Note instructions updated to include searchable chat subject
-  - Format: "Chat: {Account} quote for {products}"
-  - Searchable in Claude's sidebar history
-- **QUOTE NOTE FORMAT**: Standardized with products list (- Qty x SKU)
-- All v17 features retained
-
-### v17
-- **ECOMM-TO-PO WORKFLOW**: Full automation for converting ecomm quotes to POs (margins pre-approved, proceed without waiting)
-- **PRE-CONVERSION CHECKPOINT**: Mandatory validation before LIVE_ConvertQuoteToSO; Net_Terms cannot change after conversion
-- **HOT CACHE FALLBACK**: Auto-search Products module when "inactive product" error occurs
-- **CANCEL PENDING PO**: When deal has existing PO and new one needed, cancel pending first
-- All v16 features retained
-
-### v16
-- **CLONE FOR QUOTE VARIANTS**: Use ZohoCRM_Clone_Record to create quote variants quickly (ignore Tax fields)
-- **IGNORE TAXES/PRICES**: Never include in payloads; Zoho auto-populates from product records
-- **SKU LOOKUPS SIMPLIFIED**: Only need Product ID; skip price lookups entirely
-- **EXPLICIT ONLY**: Only modify List_Price or Tax when user explicitly requests
-- All v15 features retained
-
-### v15
-- **ADMIN ACTION WORKFLOW**: Full quote-to-PO sequence documented with all 4 Admin Actions
-- **CISCO REP LOOKUP PROMPT**: After DID generated, prompt to lookup rep if Stratus Sales assigned
-- **REP LOOKUP METHODS**: DID email search (primary), customer thread search (secondary)
-- **CLAUDE THREAD URL**: Auto-add Claude conversation URL to Quote Notes section
-- **PROMPT BEFORE UPDATE**: Never auto-update Lead_Source or Meraki_ISR
-- All v14 features retained
-
-### v13
-- **RESTRUCTURED**: Hot cache moved from SKILL.md to data/hot-cache.json
-- **182 SKUs**: Parent, MR, CW, MS130, MS150, MX, Z, MG, MT, MV, SA, C9200L, C9300, licenses
-- **UNIFIED CATALOG FALLBACK**: For SKUs not in hot cache
-
-### v12
-- Contact_Name now REQUIRED on all Quotes
-- Cisco_Billing_Term now REQUIRED, defaults to "Prepaid Term"
-- Shipping_Country now REQUIRED, defaults to "US"
-
-### v11
-- Required fields enforcement at skill level
-- Address auto-lookup via web search
-- Gmail thread integration for context extraction
-- Deal Notes on new deal creation
+See CHANGELOG.md for version history.
