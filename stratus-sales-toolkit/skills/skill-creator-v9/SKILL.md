@@ -35,7 +35,7 @@ These skills are part of the stratus-sales-toolkit plugin. When any of these are
 
 - ccw-subscription-renewal-v1-2
 - coterm-calculator-v1-0
-- daily-task-engine-v1-7
+- daily-task-engine-v1-8
 - erate-proposal-workflow-v1-1
 - fu30-followup-automation-v1-3
 - pharos-iq-automation
@@ -281,7 +281,11 @@ diff /mnt/skills/user/my-skill-v2-2/SKILL.md /home/claude/my-skill-v2-3/SKILL.md
 # Verify: line count equal or higher, no unexpected deletions
 
 # 4. Deploy to skills folder
-cp -r /home/claude/my-skill-v2-3 /mnt/skills/user/my-skill-v2-3
+# PLUGIN SKILLS: SKIP THIS STEP. Plugin skill folders are read-only (managed by the plugin system).
+#   Local install is handled by the .skill file generated in step 7.
+#   GitHub sync (step 6) copies directly from your working directory, not from /mnt/skills/user/.
+# NON-PLUGIN SKILLS ONLY:
+#   cp -r /home/claude/my-skill-v2-3 /mnt/skills/user/my-skill-v2-3
 
 # 5. Plugin-Aware Mode Check (if skill is in plugin list above)
 # → Did folder name change? (v2-2 → v2-3 = YES)
@@ -307,7 +311,11 @@ find /home/claude/new-version -type f | sort
 # Display comparison results table before proceeding
 
 # 3. Deploy to skills folder
-cp -r /home/claude/new-version /mnt/skills/user/new-version
+# PLUGIN SKILLS: SKIP THIS STEP. Plugin skill folders are read-only (managed by the plugin system).
+#   Local install is handled by the .skill file generated in step 6.
+#   GitHub sync (step 5) copies directly from your working directory, not from /mnt/skills/user/.
+# NON-PLUGIN SKILLS ONLY:
+#   cp -r /home/claude/new-version /mnt/skills/user/new-version
 
 # 4. Plugin-Aware Mode Check (if skill is in plugin list above)
 # → Did folder name change? → Update plugin.json + README.md if yes
@@ -363,8 +371,9 @@ git pull origin main
 # Remove old version of the skill from plugin (handles version bumps)
 rm -rf skills/old-skill-name-vX-X
 
-# Copy new version
-cp -r /mnt/skills/user/new-skill-name-vY-Y skills/new-skill-name-vY-Y
+# Copy new version directly from working directory
+# (Plugin skill folders are read-only — do NOT copy from /mnt/skills/user/)
+cp -r /home/claude/new-skill-name-vY-Y skills/new-skill-name-vY-Y
 ```
 
 ### Step 3: Apply Plugin Manifest Updates (if folder name changed)
@@ -431,6 +440,7 @@ GITHUB SYNC RESULTS:
 | Pull latest | ✓ |
 | Copy skill files | ✓ (X files) |
 | Version comparison | ✓ |
+| SKILL.md changes confirmed | ✓ (key additions verified via grep) |
 | Plugin manifest updated | ✓ (or SKIPPED - folder unchanged) |
 | marketplace.json bumped | ✓ 1.2.2 → 1.2.3 (or SKIPPED) |
 | plugin.json bumped | ✓ 1.2.2 → 1.2.3 (or SKIPPED) |
@@ -527,17 +537,17 @@ QUICK UPDATE (minor changes):
 1. cp -r old-skill new-skill
 2. Edit SKILL.md
 3. Run version comparison (MANDATORY)
-4. cp -r new-skill /mnt/skills/user/
+4. PLUGIN SKILLS: SKIP (read-only folder). NON-PLUGIN: cp -r new-skill /mnt/skills/user/
 5. Plugin-aware mode check (if plugin skill)
-6. GitHub sync (if plugin skill)
+6. GitHub sync (if plugin skill) — copies from working dir, NOT /mnt/skills/user/
 7. Generate .skill file → present_files (ALWAYS)
 
 FULL RELEASE (major changes):
 1. Create/update skill folder
 2. Run version comparison (MANDATORY if updating)
-3. cp -r to /mnt/skills/user/
+3. PLUGIN SKILLS: SKIP (read-only folder). NON-PLUGIN: cp -r to /mnt/skills/user/
 4. Plugin-aware mode check (if plugin skill)
-5. GitHub sync (if plugin skill)
+5. GitHub sync (if plugin skill) — copies from working dir, NOT /mnt/skills/user/
 6. Generate .skill file → present_files (ALWAYS)
 
 GITHUB SYNC:
