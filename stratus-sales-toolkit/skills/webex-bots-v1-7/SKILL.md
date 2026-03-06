@@ -1,11 +1,49 @@
 ---
-name: webex-bots-v1-6
-description: "send messages to commerce bot (lead times) and stratus chatbot (pricing quotes) in stratus bot group via webex. includes batch sku queries, auto-polling, cisco rep zoho ids, direct web link fallback, chris voice replication, and cowork computer-use fallback to webex web client when mcp errors occur. requires both text and markdown fields. triggers: lead time, pricing quote, webex message, ping cisco rep, message bot, chat bot, commerce bot."
+name: webex-bots-v1-7
+description: "send messages to commerce bot (lead times) and stratus chatbot (pricing quotes) in stratus bot group via webex. includes batch sku queries, auto-polling, cisco rep zoho ids, direct web link fallback, chris voice replication, cowork computer-use fallback, and pipedream base64 room id corruption fix with retry logic. requires both text and markdown fields. triggers: lead time, pricing quote, webex message, ping cisco rep, message bot, chat bot, commerce bot."
 ---
 
-# Webex Bots Skill v1.6
+# Webex Bots Skill v1.7
 
 Send messages to Cisco/Meraki bots in the Stratus Bot Group Webex room for lead times and pricing quotes. Also includes Cisco rep Zoho IDs for direct Webex messaging. All drafted messages use Chris's authentic voice.
+
+## What's New in v1.7
+
+**PIPEDREAM BASE64 ROOM ID CORRUPTION FIX** — Pipedream's `cisco_webex-create-message` tool intermittently corrupts base64-encoded room IDs during transmission. Specifically, the character sequence `MDAt` (capital M, capital D, capital A, lowercase t) can get mangled to `MGAt`, causing a "resource not found" error. The `list-messages` tool is unaffected and works with the same room ID.
+
+### Pipedream Room ID Fix: Retry Strategy
+
+When `cisco_webex-create-message` returns "resource not found" for the Stratus Bot Group room:
+
+```
+RETRY STRATEGY (max 2 retries):
+1. First attempt: Send normally with room ID in instruction
+2. If "resource not found" error:
+   a. Re-send with explicit character emphasis in the instruction:
+      "IMPORTANT: The roomId contains 'MDAt' (capital M, capital D, capital A, lowercase t). 
+       Do NOT change any characters. Copy the roomId exactly."
+   b. This forces Pipedream to preserve the exact base64 encoding
+3. If second attempt also fails:
+   a. Fall back to web link (chat mode) or computer-use (Cowork mode)
+```
+
+### Post-Send Verification: MCP Poll Only
+
+After a successful Webex message send, ALWAYS verify via MCP polling. Never use computer use or browser tools to verify sends.
+
+```
+VERIFICATION PATH (MANDATORY):
+1. Send message via Pipedream cisco_webex-create-message
+2. Poll directly via Pipedream cisco_webex-list-messages (no wait needed, bot responds in ~2s)
+3. Check for bot response from ccwbot@webex.bot or stratus.chatbot@webex.bot
+4. If response is "SKU Lead Time Card" (adaptive card), note that card content 
+   is not readable via API. Inform user the bot responded and link to Webex room.
+
+NEVER DO:
+✗ Use computer use / browser tools to verify Webex sends
+✗ Navigate to web.webex.com to check if message was delivered
+✗ Mix MCP send with browser-based verification
+```
 
 ## What's New in v1.6
 
@@ -283,6 +321,24 @@ Look for the most recent message from the relevant bot email after your query.
 
 ## Error Handling & Contingencies
 
+### Pipedream Base64 Room ID Corruption (NEW in v1.7)
+
+**Root Cause:** Pipedream's instruction parser can silently alter base64-encoded room IDs. The `list-messages` tool is not affected (read-only), but `create-message` (write) corrupts the ID during POST body construction.
+
+**Symptoms:**
+- `create-message` returns "The requested resource could not be found"
+- `list-messages` works fine with the exact same room ID
+- Error message shows a slightly different room ID than what you sent
+
+**Troubleshooting Table:**
+
+| Symptom | Root Cause | Fix |
+|---------|-----------|-----|
+| "resource not found" on create-message but list-messages works | Pipedream corrupts base64 `MDAt` → `MGAt` | Retry with explicit character emphasis in instruction |
+| Message sent but no bot response after 10s | Bot service may be down | Poll again, then try web link fallback |
+| "SKU Lead Time Card" in poll but no details | Adaptive card content not readable via API | Direct user to Webex room to view card |
+| create-message returns success but message not in room | Rare API lag | Poll list-messages after 3-5 seconds |
+
 ### SKU Not Recognized in Batch Query
 
 If Commerce Bot returns results for some SKUs but not others:
@@ -320,6 +376,8 @@ If no bot response appears after 10 seconds:
 - **Not polling for response**: Always follow up with list-messages to get the bot's answer
 - **Text content in spark-mention tag**: Keep the spark-mention tag empty (no text between opening and closing tags)
 - **Including license SKUs in lead time queries**: Only hardware SKUs work for lead times
+- **Using browser/computer-use to verify sends**: Always poll via MCP list-messages, never browser
+- **Giving up after first "resource not found"**: Retry with character emphasis before falling back to web link
 
 ## Chris Voice Guide (Apply to ALL Drafted Webex Messages)
 
@@ -409,7 +467,15 @@ Use this skill when user asks for:
 
 ## Changelog
 
-### v1.6 (Current)
+### v1.7 (Current)
+
+**- FIX**: Pipedream base64 room ID corruption on create-message (MDAt → MGAt). Retry with character emphasis resolves it.
+**- NEW**: Post-send verification is MCP-only. Never use computer use or browser tools to verify Webex sends.
+**- NEW**: Troubleshooting table for Pipedream encoding issues, adaptive card limitations, and API lag
+**- NEW**: Common mistakes updated with anti-patterns for browser verification and premature fallback
+**- INCLUDES**: All v1.6 features (Cowork computer-use fallback, Chris Voice Guide, web link fallback, batch queries, rep cache)
+
+### v1.6
 
 **- NEW**: Cowork computer-use fallback for Webex messaging when MCP/Pipedream fails
 **- NEW**: Automatic browser navigation to Webex web client (web.webex.com)

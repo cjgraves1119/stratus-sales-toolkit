@@ -15,7 +15,7 @@ Sales operations plugin for Stratus Information Systems. Covers the full Cisco/M
 | **subscription-modification-v2-6** | Cisco subscription add-on and modification quote processing |
 | **ccw-subscription-renewal-v1-2** | CCW subscription renewal workflow with browser automation |
 | **coterm-calculator-v1-0** | Meraki co-term expiration date calculator (weighted dollar-value method) |
-| **webex-bots-v1-6** | Commerce Bot (lead times) and Stratus Chatbot (pricing) via Webex |
+| **webex-bots-v1-7** | Commerce Bot (lead times) and Stratus Chatbot (pricing) via Webex |
 | **weborder-to-deal-automation-v1-1** | Closed-won deal creation from Cisco/Meraki weborders |
 | **erate-proposal-workflow-v1-1** | E-Rate Form 470 competitive bid workflow |
 | **pharos-iq-automation** | PharosIQ lead-to-deal conversion with Zoho CRM |
