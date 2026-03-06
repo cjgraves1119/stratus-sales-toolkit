@@ -244,6 +244,24 @@ Fields: id,Product_Code,Product_Name
 - Provide the Quote URL so line items can be added manually in Zoho
 - Do NOT delete the quote shell
 
+### 12. Ecomm Discount Prompt (NEW IN V29)
+
+After quote shell and line items are created at list price:
+
+1. Ask: "Quote created at list price. Would you like me to apply ecomm discounts to match website pricing?"
+2. IF YES:
+   a. Look up each SKU in stratus-quoting-bot prices.json → get "price" field (ecomm price)
+      ```python
+      import json, math
+      prices = json.load(open('/mnt/skills/user/stratus-quoting-bot-v4-5/prices.json'))
+      sku_data = prices['prices'].get('SKU-NAME')
+      ecomm_price = sku_data['price']
+      ```
+   b. Apply 1% reduction for rounding: `adjusted_price = math.floor(ecomm_price * 0.99)`
+   c. Calculate discount: `Discount = (List_Price × Qty) - (adjusted_price × Qty)`
+   d. Update Quoted_Items with Discount (dollar amount) and Description showing % off
+3. IF NO → proceed with list price as normal
+
 ### 13. Create Claude Reference Note (REQUIRED)
 
 **After quote is successfully created, add a Note with the Claude conversation URL:**

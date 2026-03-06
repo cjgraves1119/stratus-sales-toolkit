@@ -1,6 +1,20 @@
 # Zoho CRM Changelog
 
-### v28 (Current)
+### v29 (Current)
+
+- **SEND QUOTE TO CUSTOMER WORKFLOW**: Full end-to-end pipeline: Deal → Quote → Ecomm Pricing → CCW → PO → E-Sign → Email → CCW Approval → Follow-up Task. Single command to go from request to contract-in-customer-hands
+- **ECOMM DISCOUNT PROMPT**: After creating a quote at list price, prompts whether to apply ecomm discounts. Uses stratus-quoting-bot prices.json with 1% rounding reduction: `floor(ecomm_price * 0.99)`
+- **GMAIL THREAD READ MANDATORY**: When request references an email thread, sender, or subject, reading the full Gmail thread is now a mandatory Step 0 before any pre-creation validation. Extracts exact SKUs, quantities, terms, payment method, and contacts
+- **LIVE_SENDTOESIGN FIX**: Must target Sales_Orders module (PO record ID), not Quotes module. Running on Quotes returns __NotFound. Added Sales_Orders search by Deal_Name to get PO ID
+- **DELINQUENCY GATE**: After LIVE_ConvertQuoteToSO, checks Delinquency_Score. Non-green scores trigger Manager Approval Request that blocks PO creation. Auto-switches Net_Terms to "Cash" and re-runs conversion
+- **1% ECOMM PRICE ROUNDING**: All ecomm prices from cache get 1% reduction via `math.floor(ecomm_price * 0.99)` to compensate for cache staleness vs live pricing
+- **CCW APPROVAL SHORTCUT ENHANCEMENT**: Pass Deal ID in prompt message to skip Zoho page extraction. Navigate to Quote page first before executing. Native browser automation fallback documented
+- **6 NEW CRITICAL RULES**: Rules 43-47 (LIVE_SendToEsign on Sales_Orders, Delinquency Gate, Ecomm 1% rounding, Gmail thread read, CCW shortcut Deal ID)
+- **5 NEW NEVER DO RULES**: E-sign on Quotes, Net_Terms with non-green delinquency, raw ecomm prices, skip Gmail thread read
+- **6 NEW ERROR RECOVERY ENTRIES**: LIVE_SendToEsign__NotFound, Delinquency blocks PO, Ecomm price off, CCW shortcut failures
+- All v28 features retained
+
+### v28
 
 - **PRODUCT_NAME FIELD FIX**: Always use `Product_Name: {"id": "..."}` for line items, never `product: {"id": "..."}`. The `product` field triggers Zoho inventory active check and fails on products with negative stock quantities (even when Product_Active = true). `Product_Name` bypasses this check while correctly linking the product record. Applies to ALL quote/SO line item operations
 - **DISCOUNT IS DOLLAR AMOUNT**: The `Discount` field on Quoted_Items accepts dollar amounts, not percentages. Formula: `Discount = (List_Price x Quantity) - Target_Sell_Price`. Example: List $201, target $138 -> `Discount: 63`

@@ -115,3 +115,48 @@ Note: `_delete` not `delete`
 **Fix:**
 - Field is `Quote_Stage` not `Stage`
 - Valid values: "Draft", "Delivered", "Sent", "Invoiced", "Accepted", "On Hold"
+
+### "LIVE_SendToEsign__NotFound"
+
+**Cause:** Ran on Quote record instead of PO (Sales_Orders) record
+
+**Fix:**
+1. Search Sales_Orders by Deal: `(Deal_Name:equals:{Deal_Id})`
+2. Get the PO record ID from results
+3. Run LIVE_SendToEsign on Sales_Orders module with PO record ID
+4. NEVER run on the Quotes module
+
+### "Delinquency blocks PO (Manager Approval Request)"
+
+**Cause:** Customer has non-green Delinquency_Score, Net Terms triggers credit check
+
+**Fix:**
+1. Update Quote: Net_Terms = "Cash"
+2. Re-run: Admin_Action = "LIVE_ConvertQuoteToSO"
+3. Wait 6 seconds, re-fetch and verify
+
+### "Ecomm price off by $1-2/unit"
+
+**Cause:** Stale prices.json cache vs live website pricing
+
+**Fix:**
+- Apply 1% reduction: `adjusted_price = math.floor(ecomm_price * 0.99)`
+- This compensates for small discrepancies between cached and live prices
+
+### "CCW shortcut doesn't execute"
+
+**Cause:** Page not loaded or no DID visible when shortcut runs
+
+**Fix:**
+1. Navigate to the Quote page in Zoho CRM first
+2. Wait for page to fully load
+3. Pass Deal ID in the shortcut prompt message
+4. If shortcut still fails, fall back to native browser automation (Steps 3-9 in CCW INCENTIVE AUTO-SUBMIT)
+
+### "CCW shortcut fails entirely"
+
+**Cause:** Sidepanel error or extension issue
+
+**Fix:**
+- Fall back to native browser automation using the CCW INCENTIVE AUTO-SUBMIT workflow
+- Since Deal ID is already known, skip to Step 3 (navigate to CCW)

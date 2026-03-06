@@ -1,13 +1,41 @@
 ---
-name: zoho-crm-v28
-description: "zoho crm with product_name field fix for inactive inventory bypass, never-manually-close-won rule, weborder association logic, strengthened successor enforcement on all actions, gmail-as-source-of-truth for deal context, pipedream/zapier tool identification, and updated companion skill references. triggers: create quote, new deal, update deal, close task, task review, daily tasks, task clean up, help me complete todays tasks, close out my tasks, what tasks are due, review my tasks, submit to ccw, admin action, clone quote, cancel po. org id: org647122552."
+name: zoho-crm-v29
+description: "zoho crm with send-quote-to-customer full pipeline workflow, ecomm discount prompt on create quote, gmail thread read as mandatory pre-step, live_sendtoesign sales_orders fix, delinquency gate for po conversion, 1% ecomm price rounding reduction, and ccw approval shortcut with deal id pass-through. triggers: create quote, send quote, send quote to customer, new deal, update deal, close task, task review, daily tasks, task clean up, help me complete todays tasks, close out my tasks, what tasks are due, review my tasks, submit to ccw, admin action, clone quote, cancel po, generate po and send. org id: org647122552."
 ---
 
-# Zoho CRM v28 (Product_Name Fix + Never Close Won + Weborder Check + Gmail Source of Truth)
+# Zoho CRM v29 (Send Quote to Customer + Ecomm Discount + Gmail Thread Read + E-Sign Fix + Delinquency Gate)
 
 See CHANGELOG.md for what changed in each version.
 
-## LIVE DEAL STAGE VALIDATION
+## GMAIL THREAD READ — MANDATORY PRE-STEP (NEW IN V29)
+
+### When This Applies
+
+This step is MANDATORY before the pre-creation validation table whenever the request references an email thread, sender email, subject line, or "from {email}".
+
+### Workflow
+
+```
+STEP 0 - GMAIL CONTEXT (MANDATORY when email is referenced in request)
+IF request mentions email thread, sender email, subject line, or "from {email}":
+  1. Search Gmail: gmail_search_messages with q = "from:{sender} subject:{keywords}" or similar
+  2. Read full thread: gmail_read_thread with threadId
+  3. Extract and confirm from thread:
+     - Exact products and SKUs
+     - Quantities (resolve any ambiguity like "24 or 30")
+     - License terms (1yr, 3yr, 5yr)
+     - Payment method (ecomm, PO, credit card)
+     - All contacts involved (CC recipients, directors, etc.)
+     - Any special context (camera reactivation, serial numbers needed, etc.)
+  4. Use confirmed details as source of truth for all downstream steps
+  5. If details are STILL ambiguous after reading thread → STOP and ask user
+```
+
+### Why This Matters
+
+Prevents creating placeholder quotes that need revision. In production testing, a request said "24 or 30 MV licenses" but the Gmail thread confirmed 30 licenses at 1-year term with PO payment. Without reading the thread, we would have guessed wrong.
+
+## LIVE DEAL STAGE VALIDATION (CRITICAL - NEW IN V20)
 
 ### Why Live Validation?
 
@@ -47,7 +75,7 @@ ZohoCRM_Get_Field:
 
 **Note:** Lead_Source and Reason values are stable and controlled by Stratus admins, so the hardcoded lists remain valid for those fields. Only Stage requires live validation because Zoho auto-creates invalid values silently.
 
-## NEVER MANUALLY CLOSE WON
+## NEVER MANUALLY CLOSE WON (CRITICAL - NEW IN V27)
 
 ### Rule
 
@@ -80,7 +108,7 @@ When routing to weborder-to-deal-automation-v1-1:
 - Do NOT change Lead_Source unless instructed
 - The weborder association itself triggers the Closed Won automation
 
-## GMAIL AS SOURCE OF TRUTH
+## GMAIL AS SOURCE OF TRUTH (CRITICAL - NEW IN V27)
 
 ### Rule
 
@@ -103,7 +131,7 @@ BEFORE proposing any action on a deal-linked task:
 
 Zoho Last_Activity_Time can be misleading (updates on internal changes, not just customer contact). Gmail provides the real picture of when you last actually communicated with the customer.
 
-## PRE-CLOSE DEAL VALIDATION
+## PRE-CLOSE DEAL VALIDATION (CRITICAL - NEW IN V26)
 
 ### Purpose
 
@@ -633,7 +661,27 @@ PRE-CONVERSION VALIDATION (Net_Terms CANNOT change after conversion):
 
 **Trigger:** PO created, need customer signature
 **Result:** Sends PO via ZohoSign to customer contact
-**Note:** Run on the most recent PO for the account
+
+**⚠️ CRITICAL FIX (v29): LIVE_SendToEsign must be run on the Sales_Orders module (PO record ID), NOT the Quotes module. Running on Quotes returns __NotFound.**
+
+After LIVE_ConvertQuoteToSO succeeds:
+1. Search Sales_Orders to get PO record ID:
+   ```
+   ZohoCRM_Search_Records
+   Module: Sales_Orders
+   Criteria: (Deal_Name:equals:{Deal_Id})
+   Fields: id,Subject,Status,Grand_Total,Net_Terms
+   ```
+2. Run LIVE_SendToEsign on the **Sales_Orders** record (PO):
+   ```json
+   ZohoCRM_Update_Record
+   Module: Sales_Orders
+   RecordID: {po_id}
+   Body: {"data": [{"id": "{po_id}", "Admin_Action": "LIVE_SendToEsign"}]}
+   ```
+3. Wait 7 seconds, re-fetch PO
+4. Verify Admin_Action shows "Processing" or "Done"
+5. If __NotFound → verify you're targeting Sales_Orders, not Quotes
 
 ### Admin Action Workflow Summary
 
@@ -646,11 +694,26 @@ TYPICAL QUOTE-TO-PO FLOW:
 4. Run LIVE_GetQuoteData → Pulls disti pricing into Vendor_Lines
 5. Apply margin (use margin-update workflow if needed)
 6. Run LIVE_ConvertQuoteToSO → Creates PO from Quote
-7. Run LIVE_SendToEsign → Sends PO for customer signature
+   → DELINQUENCY GATE (v29): If Delinquency_Score is non-green, switch Net_Terms to "Cash" and re-run
+7. Run LIVE_SendToEsign on Sales_Orders module (PO record ID, NOT Quotes) → Sends PO for customer signature
 8. Customer signs → Order placed with distribution
 ```
 
-## ECOMM-TO-PO WORKFLOW
+### Delinquency Gate (NEW IN V29)
+
+After LIVE_ConvertQuoteToSO completes, check the result:
+
+```
+IF Delinquency_Score is present AND is NOT green/empty:
+  a. Update Quote: Net_Terms = "Cash"
+  b. Re-run: Admin_Action = "LIVE_ConvertQuoteToSO"
+  c. Wait 6 seconds, re-fetch
+  d. Verify Admin_Action = "LIVE_ConvertQuoteToSO__Done"
+```
+
+This handles customers with non-green credit scores where Net 15/30 triggers a Manager Approval Request that blocks PO creation.
+
+## ECOMM-TO-PO WORKFLOW (NEW IN V17)
 
 ### When to Use
 Customer needs a formal Purchase Order instead of ecomm checkout, typically because:
@@ -677,7 +740,7 @@ ECOMM-TO-PO FLOW:
 - Can proceed to PO conversion immediately after DID is generated
 - Ensure Net_Terms is correct before Step 5 (cannot change after)
 
-## CANCEL PENDING PO BEFORE NEW QUOTE
+## CANCEL PENDING PO BEFORE NEW QUOTE (NEW IN V17)
 
 ### When a Deal Has an Existing PO
 
@@ -891,14 +954,14 @@ Products:
 
 ### Step 1: Query Hot Cache via Python
 ```bash
-python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v28/data/hot-cache.json')); print(cache.get('SKU-NAME', 'NOT FOUND'))"
+python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v29/data/hot-cache.json')); print(cache.get('SKU-NAME', 'NOT FOUND'))"
 
 # Example: MR36-HW lookup
-python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v28/data/hot-cache.json')); print(cache.get('MR36-HW'))"
+python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v29/data/hot-cache.json')); print(cache.get('MR36-HW'))"
 # Returns: 2570562000028753805
 
 # Multiple SKUs
-python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v28/data/hot-cache.json')); skus=['MR36-HW','LIC-ENT-3YR']; [print(f'{s}: {cache.get(s)}') for s in skus]"
+python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v29/data/hot-cache.json')); skus=['MR36-HW','LIC-ENT-3YR']; [print(f'{s}: {cache.get(s)}') for s in skus]"
 ```
 
 ### What to Lookup
@@ -1121,11 +1184,223 @@ IF Lead_Source = "Stratus Referal", "VDC", or "Website":
 - `MSP Consultant needs reseller`
 - `Meraki ISR recommended`
 
+## SEND QUOTE TO CUSTOMER WORKFLOW (NEW IN V29)
+
+### Trigger Phrases
+- "send quote to...", "send quote", "send this quote"
+- "generate PO and send", "send contract to customer"
+- "send quote to customer"
+
+### Difference from "Create Quote"
+| Create Quote | Send Quote to Customer |
+|-------------|----------------------|
+| Deal + Quote + Notes + Task | Full pipeline: Deal → Quote → Ecomm Pricing → CCW → PO → E-Sign → Email → CCW Approval |
+| Stops after CRM setup | Sends contract to customer end-to-end |
+| Prompts for ecomm discount (optional) | Applies ecomm discount by default |
+
+### Prerequisites
+- Customer name, contact email, and account must be identifiable
+- Products/SKUs and quantities must be confirmed (use Gmail thread if referenced)
+- All standard quote creation prerequisites from zoho-crm skill apply
+
+### Workflow Phases
+
+#### PHASE A — Create Deal + Quote (Reuse Existing)
+Follow the standard "Create Quote" workflow from zoho-crm skill:
+1. Gmail Thread Read (Step 0, if email referenced)
+2. Look up Account, Contact
+3. Live Stage validation
+4. Pre-creation validation table
+5. Create Deal (Qualification, Stratus Referal defaults)
+6. Create Quote shell with line items at list price
+7. Add Deal Note, Quote Note
+
+#### PHASE B — Apply Ecomm Pricing (Default for Send Quote)
+1. Look up each SKU in latest stratus-quoting-bot prices.json
+   ```python
+   import json, math
+   prices = json.load(open('/mnt/skills/user/stratus-quoting-bot-v4-5/prices.json'))
+   sku_data = prices['prices'].get('SKU-NAME')
+   ecomm_price = sku_data['price']  # Already discounted ecomm price
+   ```
+2. Apply 1% rounding reduction: `adjusted_price = math.floor(ecomm_price * 0.99)`
+3. Calculate discount (dollar amount): `Discount = (List_Price × Qty) - (adjusted_price × Qty)`
+4. Update Quoted_Items:
+   ```json
+   {"id": "{line_item_id}", "Quantity": 30, "Discount": 4234.50,
+    "Description": "43% ecomm discount applied ($189/unit)",
+    "Product_Name": {"id": "{product_zoho_id}"}}
+   ```
+5. Re-fetch quote to verify Grand_Total matches expected ecomm total
+
+#### PHASE C — Generate Deal ID (CCW)
+1. Set Admin_Action = "LIVE_CiscoQuote_Deal" on Quote
+2. Wait 5 seconds, re-fetch Quote
+3. Verify: Cisco_Estimate_Status = "Success.VALID" and CCW_Deal_Number populated
+4. If not done after 5s → wait 5s more, re-fetch once
+5. If still not done → report error to user
+
+#### PHASE D — Convert to PO
+1. **Pre-conversion checkpoint** (MANDATORY — display to user):
+   ```
+   | Field | Value | Status |
+   |-------|-------|--------|
+   | Net_Terms | Net 15 | ⚠ FINAL - verify before proceeding |
+   | Contact | {Contact_Name} | ✓ |
+   | Tax Exempt | {Yes/No} | ✓ |
+   | Grand Total | ${amount} | ✓ |
+   ```
+   Default Net_Terms = Net 15 unless user specifies otherwise.
+
+2. Set Admin_Action = "LIVE_ConvertQuoteToSO" on Quote
+3. Wait 6 seconds, re-fetch Quote
+4. Check Admin_Action result
+
+5. **DELINQUENCY GATE** (NEW IN V29):
+   ```
+   IF Delinquency_Score is present AND is NOT green/empty:
+     a. Update Quote: Net_Terms = "Cash"
+     b. Re-run: Admin_Action = "LIVE_ConvertQuoteToSO"
+     c. Wait 6 seconds, re-fetch
+     d. Verify Admin_Action = "LIVE_ConvertQuoteToSO__Done"
+   ```
+
+6. Search Sales_Orders to get PO record ID:
+   ```
+   ZohoCRM_Search_Records
+   Module: Sales_Orders
+   Criteria: (Deal_Name:equals:{Deal_Id})
+   Fields: id,Subject,Status,Grand_Total,Net_Terms
+   ```
+
+#### PHASE E — Send for E-Signature
+**CRITICAL: Target Sales_Orders module, NOT Quotes**
+
+1. Set Admin_Action = "LIVE_SendToEsign" on the **Sales_Orders** record (PO):
+   ```json
+   ZohoCRM_Update_Record
+   Module: Sales_Orders
+   RecordID: {po_id}
+   Body: {"data": [{"id": "{po_id}", "Admin_Action": "LIVE_SendToEsign"}]}
+   ```
+2. Wait 7 seconds, re-fetch PO
+3. Verify Admin_Action shows "Processing" or "Done"
+4. If __NotFound → verify you're targeting Sales_Orders, not Quotes
+
+#### PHASE F — Send Confirmation Email
+Via Pipedream (Tier 1), thread reply if existing thread exists.
+
+**Fixed email template:**
+```
+Hey {First_Name},
+
+I just sent over the contract via ZohoSign to initiate placing the order now!
+
+Once completed, the order will be sent over to Cisco for processing and you should receive the order confirmation from them within 24-48 hours via email. Since we were able to get you pre-approved for NetTerms, you will receive an invoice to get everything paid for after everything processes.
+
+Let me know once you have everything completed so I can help put the order on the fast track for you!
+
+{signature}
+```
+
+Email routing follows zoho-crm-email skill (Tier 1 Pipedream → Tier 2 Zoho → Tier 3 Gmail compose → Tier 4 Zapier).
+Include CC recipients from the Gmail thread if applicable.
+Draft and confirm with user before sending.
+
+#### PHASE G — CCW Discount Approval Check
+This runs AFTER the contract is sent (since ecomm discounts are pre-approved).
+
+1. Re-fetch Quote, check Cisco_Quote_Status (attempt 1)
+2. Wait 5 seconds, re-fetch (attempt 2)
+3. **IF approved** (Cisco_Quote_Status != "Not Submitted") → Done
+4. **IF still "Not Submitted" after 2 attempts:**
+
+   **Primary — Chrome Extension Shortcut:**
+   ```
+   1. Navigate browser to the Quote page in Zoho CRM
+   2. Wait for page load
+   3. Activate "Deal-Reg-Approval-v2-" shortcut via shortcuts_execute
+      - Pass Deal ID in the prompt so it skips Zoho extraction
+      - The shortcut runs in a separate sidepanel window
+   ```
+
+   **Fallback — Native Browser Automation (if shortcut fails):**
+   Since we already know the Deal ID, skip straight to CCW (Step 3 of CCW INCENTIVE AUTO-SUBMIT section):
+
+   ```
+   FIXED INPUTS (never ask user):
+   - Business Problem: "Cloud Networking"
+   - Postal Code: "60606"
+   - RFQ/RFP/RFI: "No"
+
+   Step 3: Navigate to https://apps.cisco.com/Commerce/home
+   Step 4: Search for Deal ID
+     - Click search bar at coordinate (330, 29)
+     - Type the DEAL_ID
+     - Click magnifying glass at coordinate (408, 61)
+     - IMPORTANT: Do NOT press Enter — must click icon
+     - Wait 1 second
+   Step 5: Open the Deal
+     - Use find tool: query = "Deal ID {DEAL_ID}"
+     - Click the Deal ID link
+     - Wait for Deal Summary to load
+   Step 6: Navigate to Incentive Justification
+     - Use find tool: query = "Incentive"
+     - Click it (URL should change to #/justification/)
+   Step 7: Fill Justification Form (fill ALL 3 fields before advancing)
+     - FIELD 1 — Business Problem (textarea): form_input → "Cloud Networking"
+     - FIELD 2 — Postal Code (text input): form_input → "60606"
+     - FIELD 3 — RFQ/RFP/RFI "No" (radio button):
+       DO NOT use form_input for radio buttons
+       Take screenshot to confirm position
+       Click "No" by coordinate (~148, 630)
+   Step 8: Proceed to Review
+     - Find and click "Proceed to Review" button
+     - Confirm URL changes to #/review/
+     - Verify "Deal is ready for submission."
+   Step 9: Submit for Approval
+     - Find and click "Submit Quote for Approval"
+     - If first click fails: scroll down, click coordinate (530, 299)
+     - Wait 2-3 seconds
+     - Confirm URL changes to #/confirmation/
+     - Screenshot confirmation details
+     - Report: confirmation message, Next Approver, Next Partner Action, date
+   ```
+
+#### PHASE H — Follow-Up Task (Successor Enforcement)
+Create follow-up task on the deal (standard successor enforcement):
+```json
+{
+  "Subject": "Follow Up: {Contact_Name} - {Company}",
+  "Due_Date": "{today + 3 business days}",
+  "Status": "Not Started",
+  "Priority": "Normal",
+  "Owner": {"id": "2570562000141711002"},
+  "What_Id": "{Deal_Id}",
+  "$se_module": "Deals",
+  "Who_Id": "{Contact_Id}",
+  "Description": "Contract sent via ZohoSign on {today}. Monitor for signature completion. Follow up if not signed within 3 days."
+}
+```
+
+### Complete Phase Summary
+```
+A. Create Deal + Quote shell (reuse existing workflow)
+B. Apply ecomm pricing (1% reduction from cache, update line items)
+C. LIVE_CiscoQuote_Deal → Generate Deal ID
+D. LIVE_ConvertQuoteToSO → Create PO (with delinquency gate: non-green → Cash)
+E. LIVE_SendToEsign on Sales_Orders module (PO record, NOT Quote)
+F. Send confirmation email via Pipedream (fixed template, thread reply if applicable)
+G. CCW approval check (2 attempts → shortcut with Deal ID → native browser fallback)
+H. Create follow-up task (successor enforcement)
+```
+
 ## Workflow Router
 
 | User Request Pattern | Load Module |
 |---------------------|-------------|
 | "Create quote for...", "quote for X" | `workflows/quote-creation.md` |
+| "Send quote to...", "send quote", "send this quote", "generate PO and send" | SEND QUOTE TO CUSTOMER WORKFLOW (above) |
 | "Update margin to...", "apply X% margin" | `workflows/margin-update.md` |
 | "Create deal for...", "new deal" | `workflows/deal-creation.md` |
 | "Subscription quote...", "convert to subscription" | `workflows/subscription.md` |
@@ -1146,7 +1421,7 @@ IF Lead_Source = "Stratus Referal", "VDC", or "Website":
 | "true forward", "TF quote" | → **USE subscription-modification-v2-4+** |
 | "CPO quote", "process this subscription" | → **USE subscription-modification-v2-4+** |
 
-## CCW CSV GENERATION
+## CCW CSV GENERATION (NEW IN V18)
 
 ### When to Generate CCW CSV
 - **ONLY when user explicitly requests it** — e.g., "generate CCW CSV", "make the import file", "CCW import"
@@ -1225,7 +1500,7 @@ Example: `CCW_Import_2570562000379811039_RAE_Products.csv`
 6. PRESENT file for download
 ```
 
-## CRM TASK MANAGEMENT
+## CRM TASK MANAGEMENT (NEW IN V23)
 
 ### Task Search
 
@@ -1414,6 +1689,11 @@ After closing, always verify via re-fetch (`ZohoCRM_Get_Record` with Status chec
 40. **WEBORDER CHECK** - When deal shows shipped/fulfilled but not Closed Won, search for weborder PO and route through weborder-to-deal-automation-v1-1
 41. **PRODUCT_NAME NOT PRODUCT** - Always use `Product_Name: {"id": "..."}` for line items, NEVER `product: {"id": "..."}`. The `product` field triggers Zoho inventory active check and fails on products with negative stock (even when Product_Active = true). `Product_Name` bypasses this check
 42. **DISCOUNT IS DOLLAR AMOUNT** - The `Discount` field on Quoted_Items accepts dollar amounts, not percentages. Formula: `Discount = (List_Price × Quantity) - Target_Sell_Price`. Example: List $201, target $138, Qty 1 → `Discount: 63`
+43. **LIVE_SENDTOESIGN ON SALES_ORDERS** - LIVE_SendToEsign must target the Sales_Orders module (PO record ID), never the Quotes module. Running on Quotes returns __NotFound. Search Sales_Orders by Deal_Name to get PO ID
+44. **DELINQUENCY GATE** - After LIVE_ConvertQuoteToSO, check Delinquency_Score. If non-green, switch Net_Terms to "Cash" and re-run conversion. Non-green scores trigger Manager Approval Request that blocks PO creation
+45. **ECOMM 1% ROUNDING** - When applying ecomm prices from stratus-quoting-bot cache, apply 1% reduction: `adjusted_price = math.floor(ecomm_price * 0.99)`. This compensates for cache staleness vs live pricing
+46. **GMAIL THREAD READ BEFORE QUOTING** - When request references an email thread, sender, or subject, read the full Gmail thread BEFORE creating any quotes. Extract exact SKUs, quantities, terms, and contacts from the thread as source of truth
+47. **CCW SHORTCUT DEAL ID** - When triggering the CCW approval shortcut (Deal-Reg-Approval-v2-), always pass the Deal ID in the prompt message so it skips Zoho page extraction. Navigate to Quote page first before executing shortcut
 
 ## Minimal Field Sets
 
@@ -1546,6 +1826,11 @@ ALWAYS DO:
 ✓ Create follow-up tasks when email asked for next steps/decision
 ✓ Separate Zoho and Zapier calls into different batches
 ✓ Run live picklist lookup before setting "Closed (Lost)" stage
+✓ Run LIVE_SendToEsign on Sales_Orders module (PO record ID), never on Quotes
+✓ Check Delinquency_Score after PO conversion — if not green, switch to Cash and re-run
+✓ Apply 1% reduction to ecomm prices before calculating discount (floor(price * 0.99))
+✓ Read Gmail thread before quoting when email is referenced in the request
+✓ When triggering CCW approval shortcut, pass Deal ID in the prompt message
 
 NEVER DO:
 ✗ Update Deal Stage mid-workflow without explicit "close this deal" instruction
@@ -1577,6 +1862,10 @@ NEVER DO:
 ✗ Take action on deal-linked tasks without first searching Gmail for last customer contact
 ✗ Use `product` field for line items — always use `Product_Name` field (product triggers inventory check)
 ✗ Use percentage string for Discount — always use dollar amount (List×Qty - Target)
+✗ Run LIVE_SendToEsign on the Quotes module (returns __NotFound, must target Sales_Orders)
+✗ Leave Net_Terms as Net 15 when Delinquency_Score is non-green (must switch to Cash)
+✗ Use raw ecomm prices from cache without 1% rounding adjustment
+✗ Skip Gmail thread read when request references an email conversation
 ```
 
 
