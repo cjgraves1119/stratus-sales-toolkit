@@ -5,7 +5,6 @@ description: "zoho crm with product_name field fix for inactive inventory bypass
 
 # Zoho CRM v28 (Product_Name Fix + Never Close Won + Weborder Check + Gmail Source of Truth)
 
-
 ## What's New in v28
 - **PRODUCT_NAME FIELD FIX (CRITICAL)**: When adding line items to Quotes or Sales Orders via API, ALWAYS use `Product_Name: {"id": "..."}` instead of `product: {"id": "..."}`. The `product` field triggers Zoho's inventory active check and rejects products with negative stock quantities even when `Product_Active = true`. `Product_Name` bypasses this check while correctly linking the product record. Applies to ALL quote/SO line item operations.
 - **DISCOUNT IS DOLLAR AMOUNT**: The `Discount` field on Quoted_Items accepts a **dollar amount**, not a percentage. To price at $138 with list $201, set `Discount: 63`. Unit_Price cannot be overridden via API — use Discount to achieve target pricing.
@@ -752,7 +751,7 @@ REPLACE PO WORKFLOW:
 4. Run Admin Actions as normal
 ```
 
-## HOT CACHE FALLBACK (NEW IN V17)
+## HOT CACHE FALLBACK (UPDATED IN V28)
 
 ### When Product Creation Fails
 
@@ -946,14 +945,14 @@ Products:
 
 ### Step 1: Query Hot Cache via Python
 ```bash
-python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v16/data/hot-cache.json')); print(cache.get('SKU-NAME', 'NOT FOUND'))"
+python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v28/data/hot-cache.json')); print(cache.get('SKU-NAME', 'NOT FOUND'))"
 
 # Example: MR36-HW lookup
-python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v16/data/hot-cache.json')); print(cache.get('MR36-HW'))"
+python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v28/data/hot-cache.json')); print(cache.get('MR36-HW'))"
 # Returns: 2570562000028753805
 
 # Multiple SKUs
-python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v16/data/hot-cache.json')); skus=['MR36-HW','LIC-ENT-3YR']; [print(f'{s}: {cache.get(s)}') for s in skus]"
+python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v28/data/hot-cache.json')); skus=['MR36-HW','LIC-ENT-3YR']; [print(f'{s}: {cache.get(s)}') for s in skus]"
 ```
 
 ### What to Lookup
@@ -1013,7 +1012,7 @@ If EOL: Ask if renewal (use original license) or new deployment (recommend repla
 }
 ```
 
-### With Discount Applied
+### With Discount Applied (v28: Discount = Dollar Amount)
 ```json
 {
   "Quoted_Items": [
@@ -1022,6 +1021,9 @@ If EOL: Ask if renewal (use original license) or new deployment (recommend repla
   ]
 }
 ```
+
+**v28 CRITICAL**: `Discount` is a **dollar amount**, not a percentage. Formula: `Discount = (List_Price × Quantity) - Target_Sell_Price`
+Example: List $201, target $138, Qty 1 → `Discount: 63`
 
 Zoho will automatically fill in:
 - List_Price (from product record)
@@ -1464,6 +1466,8 @@ After closing, always verify via re-fetch (`ZohoCRM_Get_Record` with Status chec
 38. **SUCCESSOR AFTER EVERY ACTION** - ALL open/ongoing deals require a follow-up task after any action. Only skip if engagement should genuinely end (Closed Lost, informational FU30 with no ask)
 39. **PIPEDREAM vs ZAPIER** - Pipedream (UUID 4804cd9a) uses `instruction` (singular), zero credits, Tier 1. Zapier (UUID 91a221c4) uses `instructions` (plural), burns credits, Tier 4. Never confuse
 40. **WEBORDER CHECK** - When deal shows shipped/fulfilled but not Closed Won, search for weborder PO and route through weborder-to-deal-automation-v1-1
+41. **PRODUCT_NAME NOT PRODUCT** - Always use `Product_Name: {"id": "..."}` for line items, NEVER `product: {"id": "..."}`. The `product` field triggers Zoho inventory active check and fails on products with negative stock (even when Product_Active = true). `Product_Name` bypasses this check
+42. **DISCOUNT IS DOLLAR AMOUNT** - The `Discount` field on Quoted_Items accepts dollar amounts, not percentages. Formula: `Discount = (List_Price × Quantity) - Target_Sell_Price`. Example: List $201, target $138, Qty 1 → `Discount: 63`
 
 ## Minimal Field Sets
 
@@ -1625,11 +1629,20 @@ NEVER DO:
 ✗ Skip successor task creation on open/ongoing deals after any action
 ✗ Confuse Pipedream (instruction singular, UUID 4804cd9a) with Zapier (instructions plural, UUID 91a221c4)
 ✗ Take action on deal-linked tasks without first searching Gmail for last customer contact
+✗ Use `product` field for line items — always use `Product_Name` field (product triggers inventory check)
+✗ Use percentage string for Discount — always use dollar amount (List×Qty - Target)
 ```
 
 ## Changelog
 
-### v27 (Current)
+### v28 (Current)
+- **PRODUCT_NAME FIELD FIX**: Always use `Product_Name: {"id": "..."}` for line items, never `product: {"id": "..."}`. The `product` field triggers Zoho inventory active check and fails on products with negative stock quantities (even when Product_Active = true). `Product_Name` bypasses this check while correctly linking the product record. Applies to ALL quote/SO line item operations
+- **DISCOUNT IS DOLLAR AMOUNT**: The `Discount` field on Quoted_Items accepts dollar amounts, not percentages. Formula: `Discount = (List_Price × Quantity) - Target_Sell_Price`. Example: List $201, target $138 → `Discount: 63`
+- **HOT CACHE PATH UPDATED**: References updated to `/mnt/skills/user/zoho-crm-v28/data/hot-cache.json`
+- **2 NEW CRITICAL RULES**: Rules 41 (Product_Name not product) and 42 (Discount is dollar amount) added
+- All v27 features retained
+
+### v27
 - **NEVER MANUALLY CLOSE WON**: Deals auto-close when completed PO (Sales_Order) is attached. Claude never sets Stage to Closed Won manually
 - **WEBORDER CHECK**: When deal appears fulfilled but not Closed Won, search for weborder and route through weborder-to-deal-automation-v1-1 for proper association
 - **SUCCESSOR AFTER EVERY ACTION**: All open/ongoing deals require follow-up task after any action. Only skip if engagement should genuinely end
