@@ -1,6 +1,6 @@
 ---
 name: skill-creator-v9
-description: skill creator with mandatory version comparison, plugin-aware mode for manifest updates, github auto-sync to stratus-sales-toolkit repo, and streamlined output (no zip/docx). differentiates standalone skill updates from plugin-member skill updates with automatic plugin.json and readme.md maintenance.
+description: skill creator with mandatory version comparison, plugin-aware mode for manifest updates, github auto-sync to stratus-sales-toolkit repo, auto-generates .skill file for one-click local install after every push, and marketplace.json sync. differentiates standalone skill updates from plugin-member skill updates with automatic plugin.json, marketplace.json, and readme.md maintenance.
 ---
 
 # Skill Creator v9
@@ -16,6 +16,8 @@ Optimized skill creation with **mandatory version comparison**, **automatic GitH
 | Plugin skills list | Outdated (v1-4, v27) | Current (v1-7, v28, v9) |
 | Folder rename detection | None | Auto-detects version bump in name |
 | Standalone vs. plugin-member | Not differentiated | Explicit workflow split |
+| marketplace.json sync | Not included | Bumped alongside plugin.json on every push |
+| .skill file output | Not generated | Auto-generated after every push for one-click local install |
 
 ## GitHub Sync Configuration
 
@@ -167,7 +169,25 @@ When the folder name changes, bump the plugin version in `plugin.json` according
 
 Update these three files in the plugin repo:
 
-#### 3a. plugin.json — Update skill reference
+#### 3a. plugin.json AND marketplace.json — Update skill reference and bump versions
+
+**Both files must always be bumped together.** `marketplace.json` controls the "update available" notification for all team members. Missing it breaks update detection.
+
+`marketplace.json` is at the repo root: `/.claude-plugin/marketplace.json`
+`plugin.json` is inside the plugin folder: `/stratus-sales-toolkit/.claude-plugin/plugin.json`
+
+Update both to the same version simultaneously:
+
+```json
+// marketplace.json — update metadata.version AND plugins[].version
+"metadata": { "version": "1.2.3" },
+"plugins": [{ "version": "1.2.3" }]
+
+// plugin.json — update version
+"version": "1.2.3"
+```
+
+#### 3c. plugin.json — Update skill reference
 
 Find the old skill entry and replace with new folder name:
 
@@ -195,7 +215,7 @@ Also bump the top-level `version` field per the decision tree above:
 "version": "1.2.2"  // Patch bump for bug fix / optimization
 ```
 
-#### 3b. README.md — Update skills table
+#### 3d. README.md — Update skills table
 
 Find the skill row in the skills table and update the name and description:
 
@@ -205,7 +225,7 @@ Find the skill row in the skills table and update the name and description:
 | daily-task-engine-v1-7 | ... | new description |
 ```
 
-#### 3c. Remove old skill folder from plugin repo
+#### 3e. Remove old skill folder from plugin repo
 
 ```bash
 rm -rf skills/daily-task-engine-v1-6
@@ -357,6 +377,29 @@ git log --oneline -1  # Confirm commit
 git status            # Should be clean
 ```
 
+### Step 6: Generate .skill File for Local Install
+
+After every successful push, zip the updated skill folder as a `.skill` file and present it so the user can click "Copy to your skills" to install it locally (independent of the plugin).
+
+```bash
+# Zip the skill folder with .skill extension
+cd /home/claude/stratus-sales-toolkit/stratus-sales-toolkit/skills
+zip -r /home/claude/{skill-name}.skill {skill-name}/
+
+# Copy to outputs folder
+cp /home/claude/{skill-name}.skill /mnt/outputs/{skill-name}.skill
+```
+
+Then use `present_files` to surface the file:
+
+```
+present_files([{ file_path: "/mnt/outputs/{skill-name}.skill" }])
+```
+
+This gives the user a "Copy to your skills" button so the skill exists both in the plugin (GitHub) and as a standalone local install. Both are required for the skill to be accessible with or without the plugin active.
+
+**Always generate the .skill file.** Do not skip this step even if the user doesn't explicitly ask for it.
+
 ### GitHub Sync Summary Table
 
 Display after push completes:
@@ -369,9 +412,12 @@ GITHUB SYNC RESULTS:
 | Copy skill files | ✓ (X files) |
 | Version comparison | ✓ |
 | Plugin manifest updated | ✓ (or SKIPPED - folder unchanged) |
-| Plugin version bumped | ✓ 1.2.1 → 1.2.2 (or SKIPPED) |
+| marketplace.json bumped | ✓ 1.2.2 → 1.2.3 (or SKIPPED) |
+| plugin.json bumped | ✓ 1.2.2 → 1.2.3 (or SKIPPED) |
+| README.md updated | ✓ (or SKIPPED) |
 | Commit | ✓ (abc1234) |
 | Push to main | ✓ |
+| .skill file generated | ✓ outputs/{skill-name}.skill |
 | Plugin repo | github.com/cjgraves1119/stratus-sales-toolkit |
 ```
 
@@ -438,6 +484,8 @@ Steps:
 CORE CHANGES IN V9:
 - Plugin-aware mode: detects folder name changes, triggers manifest update
 - Plugin version bump decision tree: patch/minor/major
+- marketplace.json + plugin.json ALWAYS bumped together on every push
+- .skill file auto-generated after every push for one-click local install
 - Updated plugin skills list (v1-7, v28, v9)
 - GitHub REST API fallback when Bash unavailable
 
@@ -451,7 +499,7 @@ NEVER SKIP THIS STEP.
 PLUGIN-AWARE MODE (NEW):
 1. Did folder name change? (v1-6 → v1-7 = YES; pharos-iq = NO)
 2. If YES: determine bump type (patch/minor/major)
-3. Update plugin.json: skill name + plugin version
+3. Update plugin.json AND marketplace.json: skill name + plugin version (both same version)
 4. Update README.md: skills table row
 5. rm old folder, cp new folder into plugin
 
@@ -462,6 +510,7 @@ QUICK UPDATE (minor changes):
 4. cp -r new-skill /mnt/skills/user/
 5. Plugin-aware mode check (if plugin skill)
 6. GitHub sync (if plugin skill)
+7. Generate .skill file → present_files (ALWAYS)
 
 FULL RELEASE (major changes):
 1. Create/update skill folder
@@ -469,13 +518,15 @@ FULL RELEASE (major changes):
 3. cp -r to /mnt/skills/user/
 4. Plugin-aware mode check (if plugin skill)
 5. GitHub sync (if plugin skill)
+6. Generate .skill file → present_files (ALWAYS)
 
 GITHUB SYNC:
 1. git clone/pull the repo
 2. rm old skill folder, cp new one into skills/
-3. Apply manifest updates (plugin.json + README.md) if folder name changed
+3. Apply manifest updates (plugin.json + marketplace.json + README.md) if folder name changed
 4. git add -A && git commit && git push
 5. Display sync results table
+6. zip skill/ → outputs/{skill-name}.skill → present_files (ALWAYS)
 ```
 
 ---
@@ -486,6 +537,8 @@ GITHUB SYNC:
 - **Plugin-Aware Mode**: Detects when skill folder name changes (version bump) and automatically triggers plugin.json manifest update + plugin version bump + README.md update
 - **Plugin version bump decision tree**: Patch for bug fixes, Minor for new features, Major for breaking changes. Requires user confirmation for Minor/Major.
 - **Folder name change detection**: Explicit rule — if version number is in folder name and changes, manifest update is required; versionless folder names skip manifest update
+- **marketplace.json sync**: `marketplace.json` (repo root) and `plugin.json` (plugin folder) must ALWAYS be bumped to the same version on every push. Missing `marketplace.json` breaks "update available" detection for all team members.
+- **.skill file auto-generation**: After every GitHub push, zip the updated skill folder as `{skill-name}.skill` and present with `present_files`. This ensures the skill exists both in the plugin (distributed via GitHub) AND as a standalone local install. Both copies are required for the skill to be accessible with or without the plugin active.
 - **Updated plugin skills list**: Reflects current accurate versions (daily-task-engine-v1-7, zoho-crm-v28, skill-creator-v9)
 - **GitHub REST API fallback**: Documents how to push files via REST API when Bash/git is unavailable (ENOSPC, EROFS)
 - **Plugin-aware summary tables**: Two table formats (folder changed vs. unchanged) for display before commit
