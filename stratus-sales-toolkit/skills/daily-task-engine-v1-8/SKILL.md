@@ -1,13 +1,20 @@
 ---
-name: daily-task-engine-v1-7
-description: "canonical zoho query with status filter, ir01 batch pre-filter, sub-agent verbosity cap (json-only return), dr01 closed-won auto-close fix, and zoho-crm-v28 companion reference. parallel sub-agent task evaluation, inline email draft previews in approval table, clickable zoho crm and gmail links on every row, 5-phase workflow with task tool orchestration, inbox scan phase, never-close-won rule, weborder check in dr01 gate, gmail-first context for all deal tasks, strengthened successor enforcement after every action, pipedream/zapier tool identification, revised-draft-before-send rule, and reply-all thread participant enforcement. triggers: daily tasks, review my tasks, task review, task clean up, help me complete todays tasks, close out my tasks, close tasks, what tasks are due, send fu30 emails, fu30s, 30-day check-ins, run my tasks, morning tasks, task cleanup, finish my tasks, knock out my tasks, lets do tasks, whats on my plate, clear my task list, inbox scan, check my inbox, scan my email."
+name: daily-task-engine-v1-8
+description: "canonical zoho query with status filter, ir01 batch pre-filter, sub-agent verbosity cap (json-only return), dr01 closed-won auto-close fix, zoho-crm-v28 companion reference, and embedded chris graves voice/style guide + mandatory paragraph spacing in sub-agent prompt. parallel sub-agent task evaluation, inline email draft previews in approval table, clickable zoho crm and gmail links on every row, 5-phase workflow with task tool orchestration, inbox scan phase, never-close-won rule, weborder check in dr01 gate, gmail-first context for all deal tasks, strengthened successor enforcement after every action, pipedream/zapier tool identification, revised-draft-before-send rule, reply-all thread participant enforcement, and phase 3 pre-presentation spacing+style gate. triggers: daily tasks, review my tasks, task review, task clean up, help me complete todays tasks, close out my tasks, close tasks, what tasks are due, send fu30 emails, fu30s, 30-day check-ins, run my tasks, morning tasks, task cleanup, finish my tasks, knock out my tasks, lets do tasks, whats on my plate, clear my task list, inbox scan, check my inbox, scan my email."
 ---
 
-# Daily Task Engine v1.7 (Canonical Query + IR01 Pre-Filter + Sub-Agent Verbosity Cap + DR01 Closed Won Fix)
+# Daily Task Engine v1.8 (Voice/Style Guide + Paragraph Spacing Enforcement)
 
-Trigger router with **parallel sub-agent evaluation**, **inline email draft previews in approval table**, **clickable Zoho CRM and Gmail links on every row**, **per-task-type evaluation gates**, **batch approval tables**, **gmail-first context evaluation**, **strengthened successor enforcement after every action**, **inbox scan phase for email action items**, **revised draft must be shown before sending**, and **reply-all thread participant enforcement**.
+Trigger router with **parallel sub-agent evaluation**, **inline email draft previews in approval table**, **clickable Zoho CRM and Gmail links on every row**, **per-task-type evaluation gates**, **batch approval tables**, **gmail-first context evaluation**, **strengthened successor enforcement after every action**, **inbox scan phase for email action items**, **revised draft must be shown before sending**, **reply-all thread participant enforcement**, and **embedded Chris Graves voice/style guide with mandatory paragraph spacing in sub-agent prompt and Phase 3 pre-presentation gate**.
 
 ---
+
+## What's New in v1.8
+
+- **EMBEDDED VOICE/STYLE GUIDE IN SUB-AGENT PROMPT**: The sub-agent prompt now includes the full Chris Graves style guide inline — friendly/confident tone, sentence variety, contractions, qualifying language, banned phrases (em dashes, filler openers, AI phrases), tone anchors, and structure. Previously the prompt only had a single line: `(Chris Graves voice, no em dashes, 1-3 lines per paragraph, end with question or CTA)`.
+- **MANDATORY PARAGRAPH SPACING IN SUB-AGENT PROMPT**: Sub-agents are now explicitly required to put a blank line between every paragraph in email drafts. The spacing rule is embedded directly in the sub-agent prompt alongside the style guide — both are required, not just one.
+- **PHASE 3 PRE-PRESENTATION GATE**: Before building the approval table, a mandatory check runs on every email draft returned by sub-agents: (1) enforce blank lines between paragraphs, (2) strip filler openers and AI phrases, (3) verify ending is a question or CTA, (4) replace any em dashes. This catches spacing/style failures before the table is presented, regardless of sub-agent behavior.
+- All v1.7 features retained.
 
 ## What's New in v1.7
 
@@ -59,7 +66,7 @@ What it does:
 1. Phase 1: Pull all open tasks owned by Chris Graves, due today or overdue (canonical query)
 2. Phase 1b: IR01 pre-filter — batch-classify IR01 tasks before sub-agent launch
 3. Phase 2: Launch one sub-agent per non-IR01 task simultaneously (Task tool, single message block)
-4. Phase 3: Collect sub-agent results, build unified approval table with inline email drafts and clickable links
+4. Phase 3: Pre-presentation gate (spacing + style check) → build unified approval table with clickable links, inline drafts, IR01 batch row
 5. Phase 4: Run Inbox Scan in parallel while user reviews approval table
 6. Phase 5: Execute approved actions sequentially (atomic task lifecycle)
 
@@ -104,9 +111,9 @@ PHASE 2: PARALLEL SUB-AGENT EVALUATION (~10s flat)
   ALL agents launched in a SINGLE message block (true parallelism)
   Each agent returns structured JSON ONLY (verbosity cap enforced)
 
-PHASE 3: BUILD APPROVAL TABLE (~5s)
-  Collect all sub-agent results
-  Build unified approval table with clickable links, inline drafts, IR01 batch row
+PHASE 3: PRE-PRESENTATION GATE + BUILD APPROVAL TABLE (~5s)
+  Run mandatory spacing + style check on every draft returned by sub-agents
+  Then build unified approval table with clickable links, inline drafts, IR01 batch row
 
 PHASE 4: INBOX SCAN (runs in parallel while user reviews Phase 3 table)
   Announce: "Scanning inbox while you review the table above..."
@@ -121,7 +128,7 @@ PHASE 5: SEQUENTIAL EXECUTION
 
 ---
 
-## Phase 1: Canonical Zoho Query (NEW IN V1.7)
+## Phase 1: Canonical Zoho Query (FROM V1.7)
 
 ### Primary Query (Use This First)
 
@@ -164,7 +171,7 @@ Proceeding with: {X} open tasks
 
 ---
 
-## Phase 1b: IR01 Batch Pre-Filter (NEW IN V1.7)
+## Phase 1b: IR01 Batch Pre-Filter (FROM V1.7)
 
 ### What IR01 Tasks Are
 
@@ -215,8 +222,33 @@ STEPS:
 2. Identify last contact date and thread ID
 3. Run evaluation gate for task type: {task_type}
 4. Determine proposed action
-5. If action = send email: draft the full email body
-   (Chris Graves voice, no em dashes, 1-3 lines per paragraph, end with question or CTA)
+5. If action = send email: draft the full email body using ALL rules below
+
+VOICE & STYLE (MANDATORY — apply to every email draft):
+- Friendly and confident, never stiff. Sound like a knowledgeable colleague, not a formal report.
+- Vary sentence structure; mix short and long sentences naturally.
+- Use contractions throughout: I'll, you're, that's, we've, can't, won't.
+- 1-3 lines per paragraph MAX. No long unbroken paragraphs.
+- NEVER use em dashes. Use commas, parentheses, or periods instead.
+- NEVER open with filler: "I hope this email finds you well" or any similar opener.
+- NEVER use AI-sounding phrases: "As an AI," "I'm delighted," "Here is," "In conclusion," "Dive into," "Certainly."
+- Minimize bolding and bullet lists; favor prose. Use bullets only for 3+ parallel items.
+- Qualifying language where appropriate: "it seems," "perhaps," "looks like."
+- Assume good intent in every follow-up.
+- End every draft with a question or specific CTA — never close with a plain statement.
+- Tone anchors (use naturally, don't force): "How does everything look?", "What has feedback been so far?", "For your convenience..."
+
+SPACING (MANDATORY — validate before returning draft):
+- Blank line between EVERY paragraph — no exceptions.
+- Blank line before the closing line ("Thanks," or "Best,").
+- No two content paragraphs may be adjacent without a blank line.
+
+EMAIL STRUCTURE:
+1. Greeting (first name, exclamation if warm)
+2. 1-2 sentences of context (why you're writing now)
+3. The payload: answer, options, quote links, or bullets
+4. Single decision question or CTA (two short questions max)
+5. Closing line ("Thanks," or "Best,") — signature is handled separately, do not include it
 
 RETURN structured result:
 {
@@ -245,7 +277,7 @@ one JSON object and nothing else. This is required to prevent context exhaustion
 | Task Type | Key Sub-Agent Instructions |
 |-----------|---------------------------|
 | FU30 | Enrichment logic: get quote total, check open invoices, Gmail post-sale context, draft friendly check-in. |
-| DA90 | Check license expiration from Account/Deal notes. Within 30 days: draft renewal. 31-90 days: propose reminder task. 90+ days: close with note. |
+| DA90 | Check license expiration from Account/Deal notes. Within 30 days: draft renewal email (use license-renewal-email skill). 31-90 days: propose reminder task. 90+ days: close with note. |
 | DR01 | Fetch deal stage FIRST. If Closed (Won) or Closed (Lost): AUTO-CLOSE, no email, no successor. If active: Gmail search, draft follow-up if no contact in 14+ days. If fulfilled but not Closed Won: flag for weborder check. |
 | DEAL_FOLLOWUP | Gmail search is mandatory. Draft follow-up if no contact in 7+ days. Return last contact date. |
 | AUTO_CLOSE | Verify the action happened (quote exists, PO logged, key delivered). Return close with verification note. |
@@ -253,6 +285,59 @@ one JSON object and nothing else. This is required to prevent context exhaustion
 | CW01 | Check quote status on linked deal. Draft quote follow-up email if customer has not responded. |
 | SR | Check service request context. Return close with note or follow-up. |
 | NEEDS_REVIEW | Return task details only. No proposed email. Flag for manual decision. |
+
+---
+
+## Phase 3: Pre-Presentation Gate (NEW IN V1.8)
+
+**MANDATORY: Run this gate on every email draft before building the approval table.**
+
+For each `email_draft` returned by sub-agents, apply these checks in order:
+
+### Check 1 — Paragraph Spacing
+
+Scan the draft for adjacent paragraphs with no blank line between them.
+- IF any two content paragraphs are adjacent without a blank line → insert blank line between them.
+- IF there is no blank line before the closing line ("Thanks," or "Best,") → insert one.
+- Rule: no two content paragraphs may touch. Zero exceptions.
+
+### Check 2 — Filler Openers
+
+If the draft opens with any of the following (or similar), rewrite the opening sentence:
+- "I hope this email finds you well"
+- "I hope you're doing well"
+- "Hope all is well"
+- "I wanted to reach out"
+- "I'm reaching out to"
+- Any opener that adds no information
+
+Replace with a direct, context-setting opener (why you're writing now, what's changed, or a warm greeting that gets straight to the point).
+
+### Check 3 — AI Phrases
+
+Scan for these phrases and remove/replace them:
+- "As an AI" → remove entirely
+- "I'm delighted" → replace with "I'm glad" or rephrase naturally
+- "Here is" (as a standalone lead-in) → rewrite as prose
+- "In conclusion" → remove; restructure if needed
+- "Dive into" → replace with "get into," "look at," or rephrase
+- "Certainly" → remove or replace with "Sure" / "Of course"
+- "Best regards" → replace with "Thanks," or "Best,"
+
+### Check 4 — Em Dashes
+
+Replace any em dash (—) with a comma, parenthesis, or period depending on context.
+
+### Check 5 — Closing CTA
+
+Verify the draft ends with a question or specific call to action.
+- If the draft ends with a plain statement, append an appropriate closing question.
+- Examples: "How does everything look?", "What has feedback been so far?", "Does that timing work for you?"
+
+### Gate Output
+
+After running all 5 checks, proceed to building the approval table with the corrected drafts.
+No separate display is needed — the gate runs silently. If a draft required corrections, use the corrected version in the table.
 
 ---
 
@@ -487,7 +572,7 @@ due_date = add_business_days(today, 3)
 | Skill | Version | Purpose |
 |-------|---------|---------|
 | zoho-crm-v28 | v28 | CRM operations, task lifecycle, cascade prevention, never-close-won, weborder check, Gmail source of truth, product_name field fix |
-| zoho-crm-email-v3-5 | v3.5 | Email drafting, Pipedream-first routing, draft presentation rules, tool UUID identification |
+| zoho-crm-email-v3-5 | v3.5 | Email drafting, Pipedream-first routing, draft presentation rules, tool UUID identification, full Chris Graves style guide |
 | fu30-followup-automation-v1-3 | v1.3 | FU30 enrichment, templates, 7-day lookahead, atomic lifecycle |
 | cisco-rep-locator-v1-1 | v1.1 | Cisco rep ID lookup for ISR deal assignment |
 | webex-bots-v1-6 | v1.6 | Webex messaging for Cisco rep outreach |
@@ -523,6 +608,7 @@ due_date = add_business_days(today, 3)
 - NEVER create duplicate tasks; always run deduplication logic first
 - NEVER send a modified draft without first presenting the revised version for user approval
 - NEVER reply to only the From address; extract all To + CC participants via gmail_read_thread
+- NEVER skip the Phase 3 pre-presentation gate — spacing and style must be validated before the table is shown
 
 ### Tool UUID Reference
 
@@ -543,7 +629,15 @@ due_date = add_business_days(today, 3)
 
 ## Changelog
 
-### v1.7 (Current)
+### v1.8 (Current)
+
+- **EMBEDDED VOICE/STYLE GUIDE IN SUB-AGENT PROMPT**: Full Chris Graves style guide now embedded inline in the sub-agent prompt. Includes: friendly/confident tone, sentence variety, contractions (I'll, you're, that's, we've), qualifying language, banned phrases (em dashes, filler openers, AI phrases), tone anchors ("How does everything look?", "What has feedback been so far?", "For your convenience..."), and email structure. Previously was a single line; now a full block.
+- **MANDATORY PARAGRAPH SPACING IN SUB-AGENT PROMPT**: Sub-agents explicitly required to place blank lines between every paragraph. Rule embedded alongside voice/style guide — both enforced at draft creation time.
+- **PHASE 3 PRE-PRESENTATION GATE**: New mandatory gate runs on all sub-agent email drafts before the approval table is built. Five checks: (1) paragraph spacing, (2) filler openers, (3) AI phrases, (4) em dashes, (5) closing CTA. Gate runs silently and corrects drafts before display.
+- **NEVER RULE ADDED**: "NEVER skip the Phase 3 pre-presentation gate."
+- All v1.7 features retained.
+
+### v1.7
 
 - **CANONICAL ZOHO QUERY**: Phase 1 hardcodes the correct query. Primary: `(Owner:equals:2570562000141711002)and(Due_Date:less_equal:{TODAY})and(Status:equals:Not Started)`. Fallback for INVALID_QUERY. Banned patterns documented (no `not_equals`, no missing owner filter).
 - **IR01 BATCH PRE-FILTER**: New Phase 1b step. IR01 auto-reminder tasks identified before sub-agent launch and batch-classified as NEEDS_REVIEW in a single approval table row. Prevents wasted sub-agent budget on noise tasks.
