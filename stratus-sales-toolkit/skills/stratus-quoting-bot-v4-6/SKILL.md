@@ -1,12 +1,19 @@
 ---
-name: stratus-quoting-bot-v4-5
-description: "cisco/meraki quoting bot with feb 18 2026 pricing. 18 sku price updates (c9200l, cw9172h). 1222 skus."
+name: stratus-quoting-bot-v4-6
+description: "cisco/meraki quoting bot with url-first default output. quotes output urls only (no tables/pricing) unless pricing explicitly requested. always shows 1y/3y/5y options. feb 18 2026 pricing. 1222 skus."
 ---
 
-# Stratus Quoting Bot v4.5
+# Stratus Quoting Bot v4.6
 
 ## Purpose
 Generate validated URL quotes with optional price estimates for Stratus Information Systems. Also calculates co-term expiration dates using the weighted dollar-value method.
+
+## What's New in v4.6
+- **URL-FIRST DEFAULT**: Quote mode now outputs ONLY term labels + URLs. No SKU tables, no per-SKU pricing, no totals. Clean and minimal.
+- **ALWAYS MULTI-TERM**: All quotes default to 1Y/3Y/5Y output regardless of whether a term is specified. Single-term output only when explicitly requested.
+- **COST MODE UNCHANGED**: Full pricing tables, per-SKU costs, discounts, and totals only appear when user explicitly uses price/cost language ("how much", "price on", "cost of").
+- **EOL CALLOUTS PRESERVED**: EOL hardware notifications still display in both modes.
+- All v4.5 features retained
 
 ## What's New in v4.5
 - **UPDATED PRICING**: Feb 18, 2026 price book
@@ -42,21 +49,22 @@ Generate validated URL quotes with optional price estimates for Stratus Informat
 
 ## Trigger Phrases
 
-**Quote/URL Mode (NO pricing displayed):**
-- "quote for...", "quote me...", "build a quote for..."
+**Quote/URL Mode — DEFAULT (URLs only, no pricing, no tables):**
+- "quote for...", "quote me...", "build a quote for...", "create quote for..."
 - "URL for...", "order link for..."
 - Any request with SKUs and quantities WITHOUT price/cost language
-- Output: Validated SKUs + quantities + 1Y/3Y/5Y term options + order links
+- Dashboard screenshot uploads (license page OCR)
+- Output: EOL callouts (if applicable) + 1Y/3Y/5Y URLs only
 
-**Cost/Price Mode (FULL pricing displayed):**
+**Cost/Price Mode (FULL pricing, tables, totals — only when explicitly requested):**
 - "price on...", "how much for...", "cost of...", "what does X cost"
 - "price of [SKU]", "how much is [SKU]"
 - Any request explicitly asking for pricing, costs, or dollar amounts
-- Output: Full breakdown with per-SKU prices, discounts, totals, savings
+- Output: Full breakdown with per-SKU prices, discounts, totals, savings + URLs
 
-**Multi-Term Mode (auto when term not specified):**
-- "quote 5 MR44" (no term = show 1Y/3Y/5Y options)
-- "price MS130-24P" (no term = show all options with pricing)
+**Always Multi-Term:**
+- All quotes show 1Y/3Y/5Y options by default
+- Single-term output ONLY when user explicitly specifies a term AND says "only" or "just" (e.g., "just the 3-year quote")
 
 **Co-Term Mode:**
 - "calculate co-term", "co-term expiration"
@@ -100,7 +108,7 @@ For simple "price of X" questions, skip the full workflow:
 
 ```python
 import json
-with open('/mnt/skills/user/stratus-quoting-bot-v4-5/prices.json') as f:
+with open('/mnt/skills/user/stratus-quoting-bot-v4-6/prices.json') as f:
     prices = json.load(f)['prices']
 print(prices.get('MR44-HW'), prices.get('LIC-ENT-5YR'))
 ```
@@ -123,7 +131,7 @@ Customer Request
 │
 ├─► Simple Price Check? ──► Direct lookup → Return price immediately (COST MODE)
 │
-├─► Quote/URL Request (no price language)?
+├─► Quote/URL Request (no price language)? — DEFAULT PATH
 │   │
 │   ├─► Step 2a: Pre-validate SKU (valid_skus.json)
 │   │   ├─ INVALID → Stop, suggest alternatives
@@ -135,19 +143,17 @@ Customer Request
 │   │
 │   ├─► Step 2c-2e: Suffix → License → Price lookup
 │   │
-│   └─► Generate Quote (QUOTE MODE - no pricing)
-│       ├─ Term specified → Single quote (SKUs + URL only)
-│       └─ Term NOT specified → Multi-term (1Y/3Y/5Y with URLs only)
+│   └─► Generate Quote (QUOTE MODE - URLs only)
+│       └─ ALWAYS → 1Y/3Y/5Y URLs (no tables, no pricing, no totals)
 │
 ├─► Cost/Price Request (explicit price language)?
 │   │
 │   ├─► Same validation steps 2a-2e
 │   │
 │   └─► Generate Quote (COST MODE - full pricing)
-│       ├─ Term specified → Single quote with full pricing
-│       └─ Term NOT specified → Multi-term with full pricing
+│       └─ ALWAYS → 1Y/3Y/5Y with full pricing tables + totals
 │
-├─► License Page Screenshot? ──► OCR extract → Confirm → Quote or Co-Term
+├─► License Page Screenshot? ──► OCR extract → Confirm → Quote (URLs only) or Co-Term
 │
 ├─► Co-Term Calculation? ──► Gather inventory → Calculate new expiration
 │
@@ -170,7 +176,7 @@ Extract:
 **Load valid_skus.json from skill folder:**
 ```python
 import json
-with open('/mnt/skills/user/stratus-quoting-bot-v4-5/valid_skus.json') as f:
+with open('/mnt/skills/user/stratus-quoting-bot-v4-6/valid_skus.json') as f:
     catalog = json.load(f)
 ```
 
@@ -315,7 +321,7 @@ Which option?
 
 ```python
 import json
-with open('/mnt/skills/user/stratus-quoting-bot-v4-5/prices.json') as f:
+with open('/mnt/skills/user/stratus-quoting-bot-v4-6/prices.json') as f:
     prices = json.load(f)['prices']
 
 hw_price = prices.get('MS130-12X-HW')
@@ -340,40 +346,26 @@ Options:
 **DISPLAY MODE DETECTION:**
 
 Determine display mode based on user's language:
-- **QUOTE MODE** (default): User says "quote", "URL", "order link", or provides SKUs without price language
-- **COST MODE**: User says "price", "cost", "how much", "what does X cost", or explicitly asks for pricing
+- **QUOTE MODE** (DEFAULT): User says "quote", "URL", "order link", "create quote", provides SKUs, or uploads a dashboard screenshot. Output URLs ONLY — no SKU tables, no per-SKU pricing, no totals.
+- **COST MODE**: User says "price", "cost", "how much", "what does X cost", or explicitly asks for pricing/tables/breakdown
 
-**If term specified → Single quote**
-**If term NOT specified → Multi-term output (1Y/3Y/5Y)**
+**ALWAYS show 1Y/3Y/5Y options.** Single-term output only when user explicitly says "only" or "just" with a specific term.
 
 ---
 
-**QUOTE MODE - Term NOT specified (no pricing):**
+**QUOTE MODE — DEFAULT OUTPUT (URLs only, no pricing, no tables):**
 
 ```
-No license term specified. Here are your options:
+**1-Year:** https://stratusinfosystems.com/order/?item=MS130-12X-HW,LIC-MS130-CMPT-1Y&qty=1,1
 
-**1-Year Term**
-• 1 × MS130-12X-HW
-• 1 × LIC-MS130-CMPT-1Y
-Order link: https://stratusinfosystems.com/order/?item=MS130-12X-HW,LIC-MS130-CMPT-1Y&qty=1,1
+**3-Year:** https://stratusinfosystems.com/order/?item=MS130-12X-HW,LIC-MS130-CMPT-3Y&qty=1,1
 
-**3-Year Term (Most Common)**
-• 1 × MS130-12X-HW
-• 1 × LIC-MS130-CMPT-3Y
-Order link: https://stratusinfosystems.com/order/?item=MS130-12X-HW,LIC-MS130-CMPT-3Y&qty=1,1
-
-**5-Year Term (Best Value)**
-• 1 × MS130-12X-HW
-• 1 × LIC-MS130-CMPT-5Y
-Order link: https://stratusinfosystems.com/order/?item=MS130-12X-HW,LIC-MS130-CMPT-5Y&qty=1,1
+**5-Year:** https://stratusinfosystems.com/order/?item=MS130-12X-HW,LIC-MS130-CMPT-5Y&qty=1,1
 ```
 
-**COST MODE - Term NOT specified (full pricing):**
+**COST MODE (full pricing, only when explicitly requested):**
 
 ```
-No license term specified. Here are your options:
-
 ## 1-Year Option
 • 1 × MS130-12X-HW - $1,476.00 (33% off)
 • 1 × LIC-MS130-CMPT-1Y - $52.00 (33% off)
@@ -404,17 +396,18 @@ https://stratusinfosystems.com/order/?item={items}&qty={quantities}
 
 ---
 
-**QUOTE MODE Output Format (no pricing):**
+**QUOTE MODE Output Format — DEFAULT (URLs only):**
 ```
-Order Summary:
-• [qty] × [SKU]
-• [qty] × [SKU]
-...
+**1-Year:** [URL]
 
-Order link: [URL]
+**3-Year:** [URL]
+
+**5-Year:** [URL]
 ```
 
-**COST MODE Output Format (full pricing):**
+No SKU lists, no per-SKU pricing, no totals. Just the term label and URL.
+
+**COST MODE Output Format (full pricing, only when explicitly requested):**
 ```
 Order Summary:
 • [qty] × [SKU] - $[price].00 each ([discount]% off)
@@ -434,10 +427,12 @@ Order link: [URL]
 - Include thousands comma: $1,506.00
 - If price not found after fallback: `• 1 × [SKU] - Price TBD`
 
-**Formatting Rules (QUOTE MODE):**
-- No dollar amounts, no discounts, no totals
-- Just quantities, SKU names, and order links
-- Multi-term shows 1Y/3Y/5Y as separate sections with their own order links
+**Formatting Rules (QUOTE MODE — DEFAULT):**
+- Output ONLY: term label + URL per line
+- No dollar amounts, no discounts, no totals, no SKU lists
+- Always show 1Y/3Y/5Y as separate lines
+- EOL callouts still display above the URLs
+- Format: `**1-Year:** [URL]` (one per line, blank line between each)
 
 ### Step 5: End-of-Quote Actions
 
@@ -716,32 +711,27 @@ Before any calculation, display the weighting table with "✓ CACHE" for every S
 
 ## EXAMPLES
 
-### Example 1: Quote with term specified (QUOTE MODE - no pricing)
+### Example 1: Quote with term specified (QUOTE MODE — URLs only)
 
 **User:** "Quote 2 MR44, 1 MS130-24P, 1 MX75 with 3 year licenses"
 
 **Response:**
 ```
-✓ Product exists: MR44
-✓ Product exists: MS130-24P
-✓ Product exists: MX75
 ✓ All SKUs validated
 
-Order Summary:
-• 2 × MR44-HW
-• 2 × LIC-ENT-3YR
-• 1 × MS130-24P-HW
-• 1 × LIC-MS130-24-3Y
-• 1 × MX75-HW
-• 1 × LIC-MX75-SEC-3YR
+**1-Year:** https://stratusinfosystems.com/order/?item=MR44-HW,LIC-ENT-1YR,MS130-24P-HW,LIC-MS130-24-1Y,MX75-HW,LIC-MX75-SEC-1YR&qty=2,2,1,1,1,1
 
-Order link: https://stratusinfosystems.com/order/?item=MR44-HW,LIC-ENT-3YR,MS130-24P-HW,LIC-MS130-24-3Y,MX75-HW,LIC-MX75-SEC-3YR&qty=2,2,1,1,1,1
+**3-Year:** https://stratusinfosystems.com/order/?item=MR44-HW,LIC-ENT-3YR,MS130-24P-HW,LIC-MS130-24-3Y,MX75-HW,LIC-MX75-SEC-3YR&qty=2,2,1,1,1,1
+
+**5-Year:** https://stratusinfosystems.com/order/?item=MR44-HW,LIC-ENT-5YR,MS130-24P-HW,LIC-MS130-24-5Y,MX75-HW,LIC-MX75-SEC-5YR&qty=2,2,1,1,1,1
 
 ---
 
 **Quote generated.** What's next?
 → Zoho | Lead times | Co-term | Email | Done
 ```
+
+*Note: Even though user specified 3-year, all three term URLs are shown by default.*
 
 ### Example 1b: Same request with pricing (COST MODE)
 
@@ -773,38 +763,26 @@ Order link: https://stratusinfosystems.com/order/?item=MR44-HW,LIC-ENT-3YR,MS130
 → Zoho | Lead times | Co-term | Email | Done
 ```
 
-### Example 2: Quote without term (QUOTE MODE - multi-term, no pricing)
+### Example 2: Quote without term (QUOTE MODE — URLs only)
 
 **User:** "quote 5 MR44"
 
 **Response:**
 ```
 ✓ Product exists: MR44
-✓ Validated
 
-No license term specified. Here are your options:
+**1-Year:** https://stratusinfosystems.com/order/?item=MR44-HW,LIC-ENT-1YR&qty=5,5
 
-**1-Year Term**
-• 5 × MR44-HW
-• 5 × LIC-ENT-1YR
-Order link: https://stratusinfosystems.com/order/?item=MR44-HW,LIC-ENT-1YR&qty=5,5
+**3-Year:** https://stratusinfosystems.com/order/?item=MR44-HW,LIC-ENT-3YR&qty=5,5
 
-**3-Year Term (Most Common)**
-• 5 × MR44-HW
-• 5 × LIC-ENT-3YR
-Order link: https://stratusinfosystems.com/order/?item=MR44-HW,LIC-ENT-3YR&qty=5,5
-
-**5-Year Term (Best Value)**
-• 5 × MR44-HW
-• 5 × LIC-ENT-5YR
-Order link: https://stratusinfosystems.com/order/?item=MR44-HW,LIC-ENT-5YR&qty=5,5
+**5-Year:** https://stratusinfosystems.com/order/?item=MR44-HW,LIC-ENT-5YR&qty=5,5
 
 ---
 
 Which term, or need Zoho/lead times?
 ```
 
-### Example 2b: Price check without term (COST MODE - multi-term with pricing)
+### Example 2b: Price check (COST MODE — full pricing, only when requested)
 
 **User:** "how much for 5 MR44?"
 
@@ -852,7 +830,7 @@ Available MS130 variants: 8, 8P, 8X, 12X, 24, 24P, 24X, 48, 48P, 48X
 Did you mean: MS130-12X?
 ```
 
-### Example 4: EOL product (QUOTE MODE - no pricing)
+### Example 4: EOL product (QUOTE MODE — URLs only with EOL callout)
 
 **User:** "quote 10 MR42 with 3 year licenses"
 
@@ -863,13 +841,20 @@ Did you mean: MS130-12X?
 Is this a renewal for existing MR42 hardware, or a new purchase?
 
 **Option A: Renew Existing (licenses only)**
-• 10 × LIC-ENT-3YR
-Order link: https://stratusinfosystems.com/order/?item=LIC-ENT-3YR&qty=10
+
+**1-Year:** https://stratusinfosystems.com/order/?item=LIC-ENT-1YR&qty=10
+
+**3-Year:** https://stratusinfosystems.com/order/?item=LIC-ENT-3YR&qty=10
+
+**5-Year:** https://stratusinfosystems.com/order/?item=LIC-ENT-5YR&qty=10
 
 **Option B: Refresh to MR44 (Recommended)**
-• 10 × MR44-HW
-• 10 × LIC-ENT-3YR
-Order link: https://stratusinfosystems.com/order/?item=MR44-HW,LIC-ENT-3YR&qty=10,10
+
+**1-Year:** https://stratusinfosystems.com/order/?item=MR44-HW,LIC-ENT-1YR&qty=10,10
+
+**3-Year:** https://stratusinfosystems.com/order/?item=MR44-HW,LIC-ENT-3YR&qty=10,10
+
+**5-Year:** https://stratusinfosystems.com/order/?item=MR44-HW,LIC-ENT-5YR&qty=10,10
 
 *MR44 upgrade: Wi-Fi 6, improved performance, continued support*
 
@@ -980,7 +965,7 @@ Note: "price" field is the final customer-facing ecomm price. No additional calc
 **Lookup:**
 ```python
 import json
-with open('/mnt/skills/user/stratus-quoting-bot-v4-5/prices.json') as f:
+with open('/mnt/skills/user/stratus-quoting-bot-v4-6/prices.json') as f:
     prices = json.load(f)['prices']
 print(prices.get('MR44-HW'))
 ```
@@ -1004,7 +989,7 @@ print(prices.get('MR44-HW'))
 **Lookup:**
 ```python
 import json
-with open('/mnt/skills/user/stratus-quoting-bot-v4-5/valid_skus.json') as f:
+with open('/mnt/skills/user/stratus-quoting-bot-v4-6/valid_skus.json') as f:
     catalog = json.load(f)
 
 # Check if MS130-12X is valid
