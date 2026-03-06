@@ -1,9 +1,9 @@
 ---
-name: zoho-crm-v29
-description: "zoho crm with send-quote-to-customer full pipeline workflow, ecomm discount prompt on create quote, gmail thread read as mandatory pre-step, live_sendtoesign sales_orders fix, delinquency gate for po conversion, 1% ecomm price rounding reduction, and ccw approval shortcut with deal id pass-through. triggers: create quote, send quote, send quote to customer, new deal, update deal, close task, task review, daily tasks, task clean up, help me complete todays tasks, close out my tasks, what tasks are due, review my tasks, submit to ccw, admin action, clone quote, cancel po, generate po and send. org id: org647122552."
+name: zoho-crm-v30
+description: "zoho crm with hot cache removed (live batch sku lookup only), master quote workflow for multi-variant quotes (1y+3y combined for did, then term-specific clones), send-quote-to-customer full pipeline workflow, ecomm discount prompt on create quote, gmail thread read as mandatory pre-step, live_sendtoesign sales_orders fix, delinquency gate for po conversion, 1% ecomm price rounding reduction, and ccw approval shortcut with deal id pass-through. triggers: create quote, send quote, send quote to customer, new deal, update deal, close task, task review, daily tasks, task clean up, help me complete todays tasks, close out my tasks, what tasks are due, review my tasks, submit to ccw, admin action, clone quote, cancel po, generate po and send. org id: org647122552."
 ---
 
-# Zoho CRM v29 (Send Quote to Customer + Ecomm Discount + Gmail Thread Read + E-Sign Fix + Delinquency Gate)
+# Zoho CRM v30 (Hot Cache Removed + Master Quote Workflow)
 
 See CHANGELOG.md for what changed in each version.
 
@@ -525,6 +525,85 @@ If Zoho returns an error about invalid picklist value:
 - **CANCEL PENDING PO FIRST**: When deal has existing PO and new one needed, cancel pending PO before creating new quote
 - All v16 features retained (clone quotes, auto-pricing, admin actions)
 
+## MASTER QUOTE WORKFLOW FOR MULTI-VARIANT QUOTES (NEW IN V30)
+
+### When to Use
+
+When a customer requests quotes for multiple license terms (e.g., 1-year AND 3-year options), use the Master Quote workflow instead of creating separate quotes with separate DIDs.
+
+### Why
+
+A single DID covers all SKUs across all term variants. This avoids submitting multiple CCW deals for the same customer/opportunity and keeps all pricing under one Cisco estimate.
+
+### Workflow
+
+```
+MULTI-VARIANT QUOTE FLOW:
+
+1. BATCH LOOKUP: Search Zoho Products for ALL SKUs across ALL terms
+   - Build criteria with up to 10 SKUs per batch call
+   - Map results: {Product_Code: Zoho_ID}
+
+2. CREATE MASTER QUOTE: One quote containing ALL SKUs from ALL terms
+   - Subject: "{Account} - {Description} (Master)"
+   - Contains 1Y + 3Y + 5Y line items (whatever terms are requested)
+   - Note: "MASTER QUOTE - Do NOT send to customer"
+
+3. SUBMIT FOR DID: Run LIVE_CiscoQuote_Deal on the Master Quote
+   - Wait 6s, re-fetch, verify Cisco_Estimate_Status = "Success.VALID"
+   - Extract CCW_Deal_Number (DID)
+
+4. CREATE TERM-SPECIFIC QUOTES: Separate quotes per term
+   - Subject: "{Account} - 1-Year License Renewal"
+   - Subject: "{Account} - 3-Year License Renewal"
+   - Each contains ONLY the SKUs for that specific term
+   - CCW_Deal_Number = DID from Master (passed through on creation)
+   - Same Deal, Account, Contact, Address as Master
+
+5. ADD NOTES: Claude reference notes on all quotes
+   - Term-specific quotes reference the Master Quote ID and DID
+```
+
+### Master Quote Naming Convention
+
+| Quote Type | Subject Pattern |
+|------------|----------------|
+| Master (CCW anchor) | `{Account} - {Description} (Master)` |
+| 1-Year variant | `{Account} - 1-Year {Description}` |
+| 3-Year variant | `{Account} - 3-Year {Description}` |
+| 5-Year variant | `{Account} - 5-Year {Description}` |
+
+### Master Quote Note (REQUIRED)
+
+Always add this note to the Master Quote to prevent accidental customer sends:
+
+```
+MASTER QUOTE - Contains all SKUs for CCW Deal ID submission.
+Do NOT send to customer. Use term-specific quotes instead.
+```
+
+### DID Pass-Through
+
+When creating term-specific quotes, include `CCW_Deal_Number` in the create payload:
+
+```json
+{
+  "data": [{
+    "Subject": "Customer - 3-Year License Renewal",
+    "CCW_Deal_Number": "83560702",
+    ...other fields...
+  }]
+}
+```
+
+This links all term-specific quotes to the same Cisco estimate, enabling `LIVE_GetQuoteData` and `LIVE_ConvertQuoteToSO` on whichever term the customer selects.
+
+### When NOT to Use Master Quote
+
+- Single-term quotes (only 1 term requested) → create directly, no master needed
+- Subscription modifications → use subscription-modification skill
+- Hardware-only quotes with no license term variants → create directly
+
 ## CLONE QUOTES FOR VARIANTS (NEW)
 
 ### When to Use Clone
@@ -760,7 +839,7 @@ REPLACE PO WORKFLOW:
 4. Run Admin Actions as normal
 ```
 
-## HOT CACHE FALLBACK (UPDATED IN V28)
+## INACTIVE PRODUCT FALLBACK (UPDATED IN V30)
 
 ### When Product Creation Fails
 
@@ -768,7 +847,7 @@ If quote creation fails with error: `"can't add inactive product in the inventor
 
 **Root Cause:** Zoho's `product: {"id": "..."}` field triggers an inventory active check. Products with negative stock (Qty_in_Stock < 0) fail this check even when `Product_Active = true`.
 
-**Fix (v28): Always use `Product_Name` field, never `product` field**
+**Fix (v28+): Always use `Product_Name` field, never `product` field**
 ```json
 // CORRECT - bypasses inventory check
 {"Quoted_Items": [{"Product_Name": {"id": "2570562000205715303"}, "Quantity": 1}]}
@@ -787,7 +866,7 @@ If quote creation fails with error: `"can't add inactive product in the inventor
    Filter: Product_Active = true
    ```
 3. Use the active product ID and retry with Product_Name field
-4. Flag hot-cache.json for update (stale ID detected)
+4. Use the active product ID and retry with Product_Name field
 
 **Common Stale SKUs:** License SKUs get replaced when Cisco updates pricing. Hardware SKUs are usually stable.
 
@@ -948,21 +1027,32 @@ Products:
 
 **Purpose:** Easy traceability back to the conversation where quote was created. Chat Subject is searchable in Claude's sidebar. URL provides direct link when available.
 
-## PRODUCT ID LOOKUP (SIMPLIFIED)
+## PRODUCT ID LOOKUP (v30 — LIVE BATCH ONLY, NO HOT CACHE)
 
 **Key Insight:** Only the Product ID is needed. Zoho auto-populates List_Price, Unit_Price from the product record. Never lookup or include prices unless explicitly requested.
 
-### Step 1: Query Hot Cache via Python
-```bash
-python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v29/data/hot-cache.json')); print(cache.get('SKU-NAME', 'NOT FOUND'))"
+**v30 Change:** Hot cache removed entirely. All product ID lookups now use live batch Zoho Products search. This eliminates stale ID issues (e.g., MX67-SEC, MX85-SEC IDs were wrong in the cache).
 
-# Example: MR36-HW lookup
-python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v29/data/hot-cache.json')); print(cache.get('MR36-HW'))"
-# Returns: 2570562000028753805
+### Step 1: Batch Zoho Products Search (PRIMARY — ALWAYS USE)
 
-# Multiple SKUs
-python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v29/data/hot-cache.json')); skus=['MR36-HW','LIC-ENT-3YR']; [print(f'{s}: {cache.get(s)}') for s in skus]"
+Build a criteria string with up to 10 SKUs per batch call using OR conditions:
+
 ```
+ZohoCRM_Search_Records
+Module: Products
+Criteria: (Product_Code:equals:SKU1)OR(Product_Code:equals:SKU2)OR...OR(Product_Code:equals:SKU10)
+Fields: id,Product_Code,Product_Active
+```
+
+**Batch size limit:** 10 SKUs per API call (Zoho criteria limit). For quotes with more than 10 unique SKUs, make multiple batch calls.
+
+**Example (12 SKUs = 2 calls):**
+```
+Call 1: (Product_Code:equals:LIC-ENT-1YR)OR(Product_Code:equals:LIC-ENT-3YR)OR...  [10 SKUs]
+Call 2: (Product_Code:equals:LIC-MX68W-SEC-1YR)OR(Product_Code:equals:LIC-MX85-SEC-1Y)  [2 SKUs]
+```
+
+**Build the map programmatically:** Parse results into a `{Product_Code: id}` dictionary, then reference by SKU when building Quoted_Items.
 
 ### What to Lookup
 | Lookup | Skip |
@@ -972,21 +1062,7 @@ python3 -c "import json; cache=json.load(open('/mnt/skills/user/zoho-crm-v29/dat
 | | Net_Total |
 | | Tax |
 
-**Hot Cache Contains (182 SKUs):**
-- Parent SKUs: CISCO-NETWORK-SUB, SECURE-ACCESS-SUB, DUO-SUB
-- Access Points: MR (Wi-Fi 6), CW (Wi-Fi 6E -MR suffix), CW (Wi-Fi 7 -RTG suffix)
-- AP Licenses: LIC-ENT-{1,3,5}YR
-- Switches: MS130-HW, MS150 (no suffix), C9200L-M, C9300-M, C9300X-M, C9300L-M
-- Switch Licenses: LIC-MS130-*, LIC-MS150-*, LIC-C9200L-*, LIC-C9300-*
-- Security: MX-HW, LIC-MX*-SEC-*
-- Teleworker: Z4-HW, Z4C-HW, LIC-Z4-ENT-*
-- Cellular: MG41-HW, MG41E-HW, MG52-HW, MG52E-HW, LIC-MG41-ENT-*
-- Sensors: MT10-MT40-HW, LIC-MT-*
-- Cameras: MV2/MV12N/MV13/MV22X/MV33/MV63/MV93-HW, LIC-MV-*
-- Secure Access: SA-SIA-*, SA-SPA-*, SA-DNS-*, SA-INSIGHTS
-- Subscription: LIC-MR-E, LIC-CW-E, LIC-MX-S/M/L-E, LIC-MV-E, LIC-MT-E
-
-### Step 2: If Not in Hot Cache → Query Unified Product Catalog
+### Step 2: If Not Found → Query Unified Product Catalog
 Reference the latest `unified-product-catalog-v*` skill (check /mnt/skills/user/ for current version).
 
 ```bash
@@ -1001,7 +1077,7 @@ jq '.co_term_licenses["{BASE}"].terms["{TERM}"].zoho_id' {CATALOG_PATH}/data/lic
 ```
 
 ### Step 3: EOL Product Check
-If product not found in either cache:
+If product not found in either source:
 ```bash
 jq '.eol_products.{FAMILY}["{MODEL}"]' {CATALOG_PATH}/data/upgrade-paths.json
 ```
@@ -1747,10 +1823,11 @@ CANCEL PENDING PO (v17):
 - Cancel pending PO first (Status = "Cancelled")
 - Then create new Quote and convert
 
-HOT CACHE FALLBACK (v17):
-- If "inactive product" error → search Products module
-- Find active product with same Product_Code
-- Use active ID and retry
+HOT CACHE REMOVED (v30):
+- Hot cache (hot-cache.json) is REMOVED — do not reference it
+- ALL product ID lookups use live batch Zoho Products search
+- Batch criteria: (Product_Code:equals:SKU1)OR(Product_Code:equals:SKU2)... (max 10 per call)
+- If inactive product error → search Products module by Product_Code for active version
 
 CLONE QUOTES FOR VARIANTS (v16):
 - Use ZohoCRM_Clone_Record with overridden Subject + Quoted_Items
@@ -1782,11 +1859,12 @@ QUOTE NOTES:
 - Include products list: "- 1x MX75-HW\n- 2x CW9172I-RTG"
 - Chat Subject is searchable in Claude's sidebar
 
-PRODUCT ID LOOKUP ORDER (v21 - NO HOT CACHE):
+PRODUCT ID LOOKUP ORDER (v30 — NO HOT CACHE):
 1. Batch Zoho Products search: (Product_Code:equals:SKU1)OR(Product_Code:equals:SKU2)...
-2. If SKU returns no result → retry with variant suffix (-3Y vs -3YR)
-3. If still not found → report to user with quote URL for manual line item entry
-NOTE: Hot cache removed. All lookups are live. SKU lookup happens AFTER quote shell created.
+2. Max 10 SKUs per batch call (Zoho criteria limit), loop for more
+3. If SKU returns no result → retry with variant suffix (-3Y vs -3YR)
+4. If still not found → check unified-product-catalog skill or report to user
+NOTE: Hot cache removed in v30. All lookups are live. SKU lookup happens AFTER quote shell created.
 
 TASK MANAGEMENT (v23):
 - Atomic lifecycle: send → close → verify → follow-up (sequential, never parallel)

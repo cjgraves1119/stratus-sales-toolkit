@@ -1,6 +1,13 @@
 # Zoho CRM Changelog
 
-### v29 (Current)
+### v30 (Current)
+
+- **HOT CACHE REMOVED**: Eliminated `hot-cache.json` entirely. All product ID lookups now use live batch Zoho Products search via `(Product_Code:equals:SKU1)OR(Product_Code:equals:SKU2)...` (max 10 per call). Eliminates stale ID issues that caused "inactive product" errors on MX67-SEC, MX85-SEC, and other frequently-updated license SKUs
+- **MASTER QUOTE WORKFLOW**: For multi-variant quotes (customer wants 1Y + 3Y options), create a single Master Quote containing ALL SKUs across all terms, submit for DID via LIVE_CiscoQuote_Deal, then create separate term-specific quotes with the DID passed through. Master Quote naming: `{Account} - {Description} (Master)`. Avoids submitting multiple CCW deals for the same opportunity
+- **DID PASS-THROUGH**: Term-specific quotes include `CCW_Deal_Number` in the create payload so all variants are linked to the same Cisco estimate
+- All v29 features retained
+
+### v29
 
 - **SEND QUOTE TO CUSTOMER WORKFLOW**: Full end-to-end pipeline: Deal → Quote → Ecomm Pricing → CCW → PO → E-Sign → Email → CCW Approval → Follow-up Task. Single command to go from request to contract-in-customer-hands
 - **ECOMM DISCOUNT PROMPT**: After creating a quote at list price, prompts whether to apply ecomm discounts. Uses stratus-quoting-bot prices.json with 1% rounding reduction: `floor(ecomm_price * 0.99)`
