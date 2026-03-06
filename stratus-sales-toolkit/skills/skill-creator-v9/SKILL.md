@@ -36,7 +36,7 @@ These skills are part of the stratus-sales-toolkit plugin. When any of these are
 - ccw-subscription-renewal-v1-2
 - coterm-calculator-v1-0
 - daily-task-engine-v1-8
-- erate-proposal-workflow-v1-1
+- erate-proposal-workflow-v1-2
 - fu30-followup-automation-v1-3
 - pharos-iq-automation
 - skill-creator-v9

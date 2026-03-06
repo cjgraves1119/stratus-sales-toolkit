@@ -17,7 +17,7 @@ Sales operations plugin for Stratus Information Systems. Covers the full Cisco/M
 | **coterm-calculator-v1-0** | Meraki co-term expiration date calculator (weighted dollar-value method) |
 | **webex-bots-v1-7** | Commerce Bot (lead times) and Stratus Chatbot (pricing) via Webex |
 | **weborder-to-deal-automation-v1-1** | Closed-won deal creation from Cisco/Meraki weborders |
-| **erate-proposal-workflow-v1-1** | E-Rate Form 470 competitive bid workflow |
+| **erate-proposal-workflow-v1-2** | E-Rate Form 470 competitive bid workflow with Firecrawl-powered USAC SODA API, weekly bid scanner, and parallel agent evaluation |
 | **pharos-iq-automation** | PharosIQ lead-to-deal conversion with Zoho CRM |
 | **skill-creator-v9** | Skill authoring with plugin-aware mode — auto-updates plugin.json and README when skill folder names change |
 
