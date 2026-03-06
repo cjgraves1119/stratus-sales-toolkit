@@ -1,6 +1,9 @@
 ---
 name: skill-downloader-v1-0
-description: download all stratus-sales-toolkit plugin skills as individual .skill files for one-click install into standard Claude desktop. packages each skill directory into a zip archive with .skill extension and presents them via the cowork file presenter. triggers: update skills, download skills, skill update, skill download, get latest skills, install skills, sync skills.
+description: >-
+  bulk export all plugin skills as .skill files for one-click install into standard claude desktop.
+  triggers: update skills, download skills, skill update, skill download, get latest skills,
+  install skills, sync skills, updateskills, skilldownload, skillupdate.
 ---
 
 # Skill Downloader v1.0
