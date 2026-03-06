@@ -8,7 +8,7 @@ Sales operations plugin for Stratus Information Systems. Covers the full Cisco/M
 |-------|-------------|
 | **zoho-crm-v28** | Core CRM operations: deals, quotes, tasks, admin actions |
 | **zoho-crm-email-v3-5** | Email composition and sending with Pipedream-first routing |
-| **daily-task-engine-v1-5** | Task review with parallel sub-agent evaluation, inline email draft previews, and clickable Zoho/Gmail links |
+| **daily-task-engine-v1-7** | Task review with canonical Zoho query, IR01 batch pre-filter, sub-agent verbosity cap, and DR01 closed-won auto-close |
 | **fu30-followup-automation-v1-3** | 30-day post-sale follow-up email automation |
 | **stratus-quoting-bot-v4-5** | Cisco/Meraki URL quote generation with 1,222 SKU pricing catalog |
 | **stratus-quote-pdf-v2-0** | Stratus-branded PDF quote generation from Zoho CRM data |
@@ -19,7 +19,7 @@ Sales operations plugin for Stratus Information Systems. Covers the full Cisco/M
 | **weborder-to-deal-automation-v1-1** | Closed-won deal creation from Cisco/Meraki weborders |
 | **erate-proposal-workflow-v1-1** | E-Rate Form 470 competitive bid workflow |
 | **pharos-iq-automation** | PharosIQ lead-to-deal conversion with Zoho CRM |
-| **skill-creator-v8** | Skill authoring, versioning, and GitHub auto-sync |
+| **skill-creator-v9** | Skill authoring with plugin-aware mode — auto-updates plugin.json and README when skill folder names change |
 
 ## Required Connectors
 
