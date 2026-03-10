@@ -1,0 +1,52 @@
+{
+  "skill_name": "skill-creator-v10",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create a new skill called 'meeting-notes-v1-0' that takes rough meeting notes from a text file and produces a formatted markdown summary with action items, decisions made, and attendees. The skill should handle both bullet-point and free-form paragraph input styles. Include clear instructions for output formatting and edge cases like empty notes or notes with no clear action items.",
+      "expected_output": "A complete SKILL.md file with valid YAML frontmatter (lowercase name, quoted description with triggers), clear instructions covering both input formats, output formatting rules, edge case handling, and a pushy description that triggers on related phrases like 'summarize meeting', 'action items from call', etc.",
+      "files": [],
+      "expectations": [
+        "Output contains a SKILL.md file",
+        "SKILL.md has valid YAML frontmatter with --- delimiters",
+        "Frontmatter name field is lowercase and hyphenated",
+        "Frontmatter description is quoted and under 1024 characters",
+        "Description includes trigger phrases",
+        "Body is under 500 lines",
+        "Instructions cover both bullet-point and paragraph input styles",
+        "Instructions address edge cases (empty notes, no action items)",
+        "Output format section exists with clear structure"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I have an existing skill at /sessions/hopeful-intelligent-einstein/skill-creator-v10/SKILL.md. Run the mandatory version comparison between skill-creator-v9 (at /sessions/hopeful-intelligent-einstein/mnt/.skills/skills/skill-creator-v9/SKILL.md) and this v10 skill. Show me the 5-step comparison checklist results.",
+      "expected_output": "A structured version comparison showing: line count check (v10 >= v9), file structure comparison, diff analysis showing additions, key concept verification (all v9 concepts preserved), and a summary table. Should identify that v10 is larger and preserves all v9 functionality.",
+      "files": [],
+      "expectations": [
+        "Output includes line count comparison between v9 and v10",
+        "Output shows v10 has equal or more lines than v9",
+        "Output includes file structure comparison",
+        "Output includes diff analysis",
+        "Output identifies key v9 concepts that are preserved in v10",
+        "Output includes a summary table or structured result",
+        "No false claim that v10 removed v9 functionality"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Analyze the skill-creator-v10 SKILL.md at /sessions/hopeful-intelligent-einstein/skill-creator-v10/SKILL.md and evaluate its quality. Check: Is the YAML frontmatter valid? Is the description pushy enough for good triggering? Are the instructions clear and well-organized? Is the body under 500 lines? Does it follow the progressive disclosure pattern? Give me a quality scorecard.",
+      "expected_output": "A detailed quality assessment covering frontmatter validity, description analysis (trigger coverage, length, pushiness), instruction clarity, line count compliance, progressive disclosure adherence, and an overall scorecard with specific strengths and areas for improvement.",
+      "files": [],
+      "expectations": [
+        "Output validates YAML frontmatter structure",
+        "Output evaluates description length and trigger coverage",
+        "Output checks line count against 500-line guideline",
+        "Output assesses instruction clarity and organization",
+        "Output mentions progressive disclosure pattern",
+        "Output provides a structured scorecard or rating",
+        "Output identifies at least one strength and one area for improvement"
+      ]
+    }
+  ]
+}
