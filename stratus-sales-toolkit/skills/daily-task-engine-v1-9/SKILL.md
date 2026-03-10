@@ -338,13 +338,30 @@ Verify the draft ends with a question or specific call to action.
 
 ### Gate Output
 
-After running all 5 checks, proceed to dashboard generation with the corrected drafts.
+After running all 5 checks, proceed to output routing below.
+
+### Output Routing (User Intent Detection)
+
+Before attempting dashboard generation, check the user's original message for explicit chat-table preference:
+
+**Route to Phase 3b (Chat Table) if the user said any of:**
+- "skip the dashboard"
+- "just show me the table"
+- "chat format"
+- "no dashboard"
+- "table in chat"
+- "text format"
+- Or any phrasing that explicitly requests non-dashboard output
+
+**Route to Phase 3a (Dashboard) in all other cases** — this is the default.
+
+This check runs ONCE at the start of output routing. If routed to Phase 3b by user preference, skip Phase 3a entirely (do not attempt dashboard generation first).
 
 ---
 
 ## Phase 3a: Dashboard Output (Default)
 
-After the pre-presentation gate, transform sub-agent results into an interactive HTML dashboard. This is the default output for Full Daily Task Review. The chat-based approval table (Phase 3b) is the fallback if dashboard generation fails.
+After the pre-presentation gate, transform sub-agent results into an interactive HTML dashboard. This is the default output for Full Daily Task Review. The chat-based approval table (Phase 3b) serves as fallback if dashboard generation fails OR if the user explicitly requested chat format.
 
 ### Step 1: Transform Sub-Agent Results to Dashboard Schema
 
@@ -436,9 +453,9 @@ If the dashboard template is missing or writing fails, fall back to the chat-bas
 
 ---
 
-## Phase 3b: Chat Approval Table (Fallback)
+## Phase 3b: Chat Approval Table (Fallback / User Preference)
 
-Use this format only if dashboard generation fails.
+Use this format if dashboard generation fails OR if the user explicitly requested chat-table output (see Output Routing above).
 
 ### Hyperlink Enforcement (MANDATORY)
 
