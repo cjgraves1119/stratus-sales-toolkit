@@ -1496,15 +1496,19 @@ H. Create follow-up task (successor enforcement)
 
 ## Workflow Router
 
+**⚠ MANDATORY: Before executing ANY quote or deal workflow, you MUST read the corresponding workflow file. The workflow files contain the full step-by-step process including pre-creation checkpoints, address validation, Net_Terms confirmation, and payload construction. Reading only SKILL.md is insufficient and will cause missed validation steps.**
+
 | User Request Pattern | Load Module |
 |---------------------|-------------|
-| "Create quote for...", "quote for X" | `workflows/quote-creation.md` |
+| "Create quote for...", "quote for X" | **READ FIRST:** `workflows/quote-creation.md` |
 | "Send quote to...", "send quote", "send this quote", "generate PO and send" | SEND QUOTE TO CUSTOMER WORKFLOW (above) |
-| "Update margin to...", "apply X% margin" | `workflows/margin-update.md` |
-| "Create deal for...", "new deal" | `workflows/deal-creation.md` |
-| "Subscription quote...", "convert to subscription" | `workflows/subscription.md` |
-| "Secure Access", "SA-SIA", "SA-SPA", "SA-DNS" | `workflows/subscription.md` |
+| "Update margin to...", "apply X% margin" | **READ FIRST:** `workflows/margin-update.md` |
+| "Create deal for...", "new deal" | **READ FIRST:** `workflows/deal-creation.md` |
+| "Subscription quote...", "convert to subscription" | **READ FIRST:** `workflows/subscription.md` |
+| "Secure Access", "SA-SIA", "SA-SPA", "SA-DNS" | **READ FIRST:** `workflows/subscription.md` |
 | Error occurred, validation failed | `references/error-solutions.md` |
+
+**Do not make any API calls until the relevant workflow file has been loaded and its pre-creation checkpoint has been displayed to the user.**
 
 ## HANDOFF TO DEDICATED SKILLS
 

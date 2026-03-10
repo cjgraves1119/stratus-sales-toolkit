@@ -1,3 +1,8 @@
+## v31.1 (2026-03-10)
+- **Workflow Router → hard-stop**: Now explicitly instructs Claude to READ the workflow file before any API calls. Prevents SKILL.md-only execution that bypasses the full pre-creation checkpoint.
+- **Net_Terms added to Step 9 checkpoint** (quote-creation.md): Net_Terms now appears in the pre-creation validation table with ⚠ CONFIRM status. Rules block states: NEVER create quote before Net_Terms is confirmed.
+- **Shipping fields added to quote shell payload** (quote-creation.md): Shipping_Street/City/State/Code now explicitly included in the Step 10 payload template, mirroring billing fields. Removed ambiguity from "Shipping_Country: US only" payload.
+
 ## v31 (2026-03-10)
 - **ADDRESS CARRY-FORWARD (Rule 48)**: Billing/shipping address fields from Account lookup MUST be included in Quote creation payload. No more create-then-patch. Hard stop if address missing.
 - **NET_TERMS MUST BE CONFIRMED (Rule 49)**: Net_Terms is now a required row in pre-creation validation table, confirmed before first API call. Never silently defaults to Net 15.
