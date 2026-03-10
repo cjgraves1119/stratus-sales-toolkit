@@ -1,5 +1,15 @@
 # Daily Task Engine Changelog
 
+### v2.0
+
+- **TOKEN-OPTIMIZED ARCHITECTURE**: Complete audit of context window usage identified ~180K bytes/run of savings across 5 optimizations. Session previously compacted 2x before reaching Phase 5; these changes target root causes.
+- **SORT FIX (Due_Date → Created_Time)**: Zoho Search API only supports `id`, `Created_Time`, `Modified_Time` for `sort_by`. Previous `Due_Date asc` caused INVALID_DATA errors and wasted retry tokens. Now uses `Created_Time asc` with inline documentation of valid values.
+- **FILE-PIPED SUB-AGENT RESULTS**: Each sub-agent writes evaluation JSON to `/tmp/task_eval_{task_id}.json` instead of returning inline. Results collected via bash one-liner after all agents complete. Keeps ~40-50K of structured JSON out of conversation context.
+- **PRE-BUILT DASHBOARD INJECTOR SCRIPT**: New `assets/build_dashboard.py` handles template injection using `str.find()` + string concatenation (never regex, which crashes on `\u` escapes in JSON). Replaces ~80K of inline Python generation that was rebuilt from scratch every run.
+- **DEFERRED COMPANION SKILL LOADING**: Companion skills (zoho-crm-v30, zoho-crm-email-v3-5, etc.) no longer loaded at trigger time. Deferred to Phase 5 just-in-time when execution actually begins. Saves ~20K context during evaluation phases.
+- **JUST-IN-TIME SKILL LOADING SECTION (Phase 5)**: New subsection at Phase 5 start documents which companion skills to read for which task types, loaded once per session rather than per-task.
+- All v1.9 features retained.
+
 ### v1.9
 
 - **INTERACTIVE HTML DASHBOARD OUTPUT (DEFAULT)**: New Phase 3a replaces the chat-based approval table as the default output. Generates a standalone HTML dashboard file populated with live sub-agent evaluation data via `window.TASK_DATA_INJECT`. Dashboard features: Card/Compact/Kanban views, inline email editing with character counts, batch approve/skip/reject with toggle, drag-and-drop in Kanban, dark mode, search and filter by type/status, auto-save every 30 seconds, and three export paths (Send to Claude URL injection, Save to Folder JSON, Copy to Clipboard).

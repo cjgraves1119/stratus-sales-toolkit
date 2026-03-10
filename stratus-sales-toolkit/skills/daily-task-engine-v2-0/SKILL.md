@@ -1,11 +1,11 @@
 ---
-name: daily-task-engine-v1-9
-description: "6-phase daily task engine with interactive html dashboard output, google calendar briefing, parallel sub-agent evaluation, batch approval tables, inbox scan, gmail-first context, successor enforcement, hyperlink enforcement, and centralized voice guide. dashboard features: card/compact/kanban views, inline email editing, drag-and-drop, dark mode, send-to-claude url injection, auto-save, search/filter, batch approve/skip/reject with toggle. triggers: daily tasks, review my tasks, task review, task clean up, help me complete todays tasks, close out my tasks, close tasks, what tasks are due, send fu30 emails, fu30s, 30-day check-ins, run my tasks, morning tasks, task cleanup, finish my tasks, knock out my tasks, lets do tasks, whats on my plate, clear my task list, inbox scan, check my inbox, scan my email."
+name: daily-task-engine-v2-0
+description: "6-phase daily task engine with token-optimized architecture, pre-built dashboard injector script, file-piped sub-agent results, deferred companion skill loading, interactive html dashboard output, google calendar briefing, parallel sub-agent evaluation, batch approval tables, inbox scan, gmail-first context, successor enforcement, hyperlink enforcement, and centralized voice guide. dashboard features: card/compact/kanban views, inline email editing, drag-and-drop, dark mode, send-to-claude url injection, auto-save, search/filter, batch approve/skip/reject with toggle. triggers: daily tasks, review my tasks, task review, task clean up, help me complete todays tasks, close out my tasks, close tasks, what tasks are due, send fu30 emails, fu30s, 30-day check-ins, run my tasks, morning tasks, task cleanup, finish my tasks, knock out my tasks, lets do tasks, whats on my plate, clear my task list, inbox scan, check my inbox, scan my email."
 ---
 
-# Daily Task Engine v1.9 (Interactive Dashboard Output)
+# Daily Task Engine v2.0 (Token-Optimized Architecture)
 
-Trigger router with **interactive HTML dashboard output (default)**, **parallel sub-agent evaluation**, **inline email draft previews**, **clickable Zoho CRM and Gmail links**, **per-task-type evaluation gates**, **batch approval tables**, **gmail-first context evaluation**, **strengthened successor enforcement**, **inbox scan phase**, **revised draft approval rule**, **reply-all thread enforcement**, and **embedded Chris Graves voice/style guide with mandatory paragraph spacing**.
+Trigger router with **token-optimized architecture**, **pre-built dashboard injector**, **file-piped sub-agent results**, **deferred companion skill loading**, **interactive HTML dashboard output (default)**, **parallel sub-agent evaluation**, **inline email draft previews**, **clickable Zoho CRM and Gmail links**, **per-task-type evaluation gates**, **batch approval tables**, **gmail-first context evaluation**, **strengthened successor enforcement**, **inbox scan phase**, **revised draft approval rule**, **reply-all thread enforcement**, and **embedded Chris Graves voice/style guide with mandatory paragraph spacing**.
 
 ---
 
@@ -28,31 +28,32 @@ What it does:
 6. Phase 4: Run Inbox Scan in parallel while user reviews dashboard
 7. Phase 5: Execute approved actions sequentially (atomic task lifecycle)
 
-Skills to load: zoho-crm-v30, zoho-crm-email-v3-5
+Skills to load at trigger: NONE (companion skills deferred to Phase 5 to save ~20K context during evaluation phases)
+Skills loaded just-in-time at Phase 5: zoho-crm-v30, zoho-crm-email-v3-5
 
 ### Task Cleanup (Close Only)
 
 Triggers: /CloseTasks, "close out my tasks", "close tasks", "task clean up", "task cleanup", "clear my task list", "finish my tasks"
 
-Skills to load: zoho-crm-v30
+Skills loaded just-in-time at execution: zoho-crm-v30
 
 ### 30-Day Follow-Up Emails
 
 Triggers: /FU30s, "send fu30 emails", "fu30s", "30-day check-ins", "post-sale check-ins", "run fu30s", "customer check-ins"
 
-Skills to load: zoho-crm-v30, zoho-crm-email-v3-5, fu30-followup-automation-v1-3
+Skills loaded just-in-time at execution: zoho-crm-v30, zoho-crm-email-v3-5, fu30-followup-automation-v1-3
 
 ### Inbox Scan (Standalone)
 
 Triggers: /InboxScan, "check my inbox", "inbox scan", "scan inbox", "scan my email", "what emails need attention"
 
-Skills to load: zoho-crm-v30, zoho-crm-email-v3-5
+Skills loaded just-in-time at execution: zoho-crm-v30, zoho-crm-email-v3-5
 
 ### Triage Only (No Action)
 
 Triggers: "what tasks are due", "show me my tasks", "task summary", "what do I have today"
 
-Skills to load: zoho-crm-v30
+Skills loaded just-in-time if action needed: zoho-crm-v30
 
 ---
 
@@ -149,7 +150,7 @@ If no events today, display: "📅 No meetings today — clear calendar for task
 Criteria: (Owner:equals:2570562000141711002)and(Due_Date:less_equal:{TODAY})and(Status:equals:Not Started)
 Page size: 50
 Pages: Fetch pages 1, 2, 3 (up to 150 records)
-Sort: Due_Date asc
+Sort: Created_Time asc (Zoho only supports id, Created_Time, Modified_Time for sort_by — NEVER use Due_Date)
 ```
 
 Replace `{TODAY}` with today's date in YYYY-MM-DD format.
@@ -228,6 +229,28 @@ IR01 tasks appear as a single grouped entry in the dashboard with type "IR01_BAT
 ## Phase 2: Sub-Agent Launch Pattern
 
 CRITICAL: All sub-agents launched in ONE message block for true parallelism.
+
+### File-Piped Results (Token Optimization)
+
+Sub-agent results consume ~3-4K each and stay in the context window. With 15+ tasks, that's 40-60K of context used just for evaluation results. To prevent this from crowding out Phase 5 execution space:
+
+1. Each sub-agent writes its JSON result to `/tmp/task_eval_{task_id}.json` instead of returning it inline
+2. After all sub-agents complete, read results from disk for Phase 3 dashboard generation
+3. This keeps sub-agent result data OUT of the main conversation context
+
+Add this instruction to each sub-agent prompt: "Write your JSON result to /tmp/task_eval_{task_id}.json using the Write tool. Your chat response should be ONLY: 'Result written to /tmp/task_eval_{task_id}.json'"
+
+After all sub-agents return, collect results:
+```bash
+cat /tmp/task_eval_*.json | python3 -c "
+import sys, json, glob
+results = []
+for f in sorted(glob.glob('/tmp/task_eval_*.json')):
+    with open(f) as fh:
+        results.append(json.load(fh))
+json.dump(results, sys.stdout)
+" > /tmp/task_data_raw.json
+```
 
 Each sub-agent receives this prompt:
 
@@ -338,30 +361,13 @@ Verify the draft ends with a question or specific call to action.
 
 ### Gate Output
 
-After running all 5 checks, proceed to output routing below.
-
-### Output Routing (User Intent Detection)
-
-Before attempting dashboard generation, check the user's original message for explicit chat-table preference:
-
-**Route to Phase 3b (Chat Table) if the user said any of:**
-- "skip the dashboard"
-- "just show me the table"
-- "chat format"
-- "no dashboard"
-- "table in chat"
-- "text format"
-- Or any phrasing that explicitly requests non-dashboard output
-
-**Route to Phase 3a (Dashboard) in all other cases** — this is the default.
-
-This check runs ONCE at the start of output routing. If routed to Phase 3b by user preference, skip Phase 3a entirely (do not attempt dashboard generation first).
+After running all 5 checks, proceed to dashboard generation with the corrected drafts.
 
 ---
 
 ## Phase 3a: Dashboard Output (Default)
 
-After the pre-presentation gate, transform sub-agent results into an interactive HTML dashboard. This is the default output for Full Daily Task Review. The chat-based approval table (Phase 3b) serves as fallback if dashboard generation fails OR if the user explicitly requested chat format.
+After the pre-presentation gate, transform sub-agent results into an interactive HTML dashboard. This is the default output for Full Daily Task Review. The chat-based approval table (Phase 3b) is the fallback if dashboard generation fails.
 
 ### Step 1: Transform Sub-Agent Results to Dashboard Schema
 
@@ -401,30 +407,29 @@ For each sub-agent result, map to this JavaScript object:
 
 Include IR01 batch entry (see Phase 1b format) at the end if IR01 tasks exist.
 
-### Step 2: Read Dashboard Template
+### Step 2: Write Task Data to Temp File
 
-Read the HTML template from `assets/task-dashboard.html` bundled with this skill.
+Save the transformed task array as JSON to a temp file. This is the input for the pre-built dashboard injector:
 
-### Step 3: Inject Data into Template
-
-Find the line `const SAMPLE_DATA = [` in the template and replace the entire SAMPLE_DATA block with the live data. Insert a `window.TASK_DATA_INJECT` assignment before it:
-
-```javascript
-window.TASK_DATA_INJECT = [/* transformed task array */];
+```python
+import json
+with open('/tmp/task_data.json', 'w') as f:
+    json.dump(transformed_task_array, f)
 ```
+
+### Step 3: Run Pre-Built Dashboard Injector
+
+Use the bundled `assets/build_dashboard.py` script to inject data into the HTML template. This eliminates the need to generate Python code from scratch each run (saves ~80K of context).
+
+```bash
+python assets/build_dashboard.py assets/task-dashboard.html /tmp/task_data.json /mnt/outputs/task-dashboard.html
+```
+
+The script uses string find/replace (not regex) to avoid `re.error: bad escape \u` failures on JSON containing URL-encoded characters. It finds the `const SAMPLE_DATA = [` marker and inserts `window.TASK_DATA_INJECT = [data];` before it.
 
 The dashboard's existing logic (`const TASK_DATA = window.TASK_DATA_INJECT || SAMPLE_DATA;`) picks up the injected data automatically.
 
-### Step 4: Write Dashboard to Workspace
-
-Write the populated HTML file to the user's workspace folder:
-
-```python
-# Write to workspace
-output_path = '/mnt/outputs/task-dashboard.html'  # Or the user's mounted folder
-```
-
-Use the skill's working directory for intermediate work, and save the final file to the workspace folder so the user can access it.
+If the script fails for any reason, fall back to manual string injection in Python (use `str.find()` + concatenation, NEVER `re.sub()`).
 
 ### Step 5: Present Dashboard Link
 
@@ -453,9 +458,9 @@ If the dashboard template is missing or writing fails, fall back to the chat-bas
 
 ---
 
-## Phase 3b: Chat Approval Table (Fallback / User Preference)
+## Phase 3b: Chat Approval Table (Fallback)
 
-Use this format if dashboard generation fails OR if the user explicitly requested chat-table output (see Output Routing above).
+Use this format only if dashboard generation fails.
 
 ### Hyperlink Enforcement (MANDATORY)
 
@@ -557,6 +562,18 @@ INBOX_FYI:
 ---
 
 ## Phase 5: Sequential Execution
+
+### Just-In-Time Companion Skill Loading
+
+Companion skills (zoho-crm-v30, zoho-crm-email-v3-5, etc.) are NOT loaded at trigger time. They are loaded here at Phase 5, right before execution begins. This saves ~20K of context during the evaluation phases (0-3) where these skills aren't needed.
+
+Before executing any approved action, read the relevant companion skill(s):
+- For email sends: read zoho-crm-email-v3-5
+- For CRM operations: read zoho-crm-v30
+- For FU30 tasks: read fu30-followup-automation-v1-3
+- For ISR check-ins: read cisco-rep-locator-v1-1 and webex-bots-v1-7
+
+Read once at Phase 5 start, not per-task.
 
 ### Accepting Decisions
 
