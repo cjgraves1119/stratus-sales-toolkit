@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Task Approval Dashboard</title>
+<style>
+:root {
+  --bg: #f1f5f9; --card: #ffffff; --header-bg: #0f172a; --header-text: #f8fafc;
+  --approve: #10b981; --approve-bg: #ecfdf5; --approve-border: #6ee7b7;
+  --reject: #ef4444; --reject-bg: #fef2f2; --reject-border: #fca5a5;
+  --skip: #6b7280; --skip-bg: #f3f4f6; --skip-border: #d1d5db;
+  --accent: #0d9488; --accent-light: #ccfbf1;
+  --text: #1e293b; --text-light: #64748b; --text-lighter: #94a3b8;
+  --border: #e2e8f0; --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.1);
+  --radius: 10px;
+  --input-bg: #ffffff;
+}
+[data-theme="dark"] {
+  --bg: #0f172a; --card: #1e293b; --header-bg: #020617; --header-text: #f8fafc;
+  --approve-bg: #064e3b; --approve-border: #047857;
+  --reject-bg: #450a0a; --reject-border: #991b1b;
+  --skip-bg: #1f2937; --skip-border: #4b5563;
+  --accent-light: #134e4a;
+  --text: #e2e8f0; --text-light: #94a3b8; --text-lighter: #64748b;
+  --border: #334155; --shadow: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.4);
+  --input-bg: #1e293b;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; transition: background 0.3s, color 0.3s; }
+
+/* Header */
+.header { background: var(--header-bg); color: var(--header-text); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+.header-date { font-size: 13px; color: var(--text-lighter); }
+.header-right { display: flex; align-items: center; gap: 16px; }
+.dark-toggle { background: none; border: 1px solid rgba(255,255,255,0.2); color: var(--header-text); padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+.dark-toggle:hover { background: rgba(255,255,255,0.1); }
+.auto-save-indicator { font-size: 11px; color: var(--text-lighter); display: flex; align-items: center; gap: 4px; }
+.auto-save-dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block; }
+.auto-save-dot.unsaved { background: #f59e0b; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* Stats Bar */
+.stats-bar { display: flex; gap: 12px; padding: 16px 24px; background: var(--card); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.stat { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; }
+.stat-count { font-size: 18px; font-weight: 700; }
+.stat-total { background: #f0f9ff; color: #0369a1; }
+.stat-pending { background: #fffbeb; color: #b45309; }
+.stat-approved { background: var(--approve-bg); color: #047857; }
+.stat-rejected { background: var(--reject-bg); color: #b91c1c; }
+.stat-skipped { background: var(--skip-bg); color: #374151; }
+[data-theme="dark"] .stat-total { background: #0c4a6e; color: #7dd3fc; }
+[data-theme="dark"] .stat-pending { background: #78350f; color: #fcd34d; }
+[data-theme="dark"] .stat-approved { color: #6ee7b7; }
+[data-theme="dark"] .stat-rejected { color: #fca5a5; }
+[data-theme="dark"] .stat-skipped { color: #d1d5db; }
+
+/* Controls */
+.controls { display: flex; gap: 8px; padding: 12px 24px; background: var(--card); border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
+.view-btn { padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); cursor: pointer; font-size: 13px; color: var(--text-light); transition: all 0.15s; }
+.view-btn:hover { background: var(--bg); }
+.view-btn.active { background: var(--header-bg); color: white; border-color: var(--header-bg); }
+
+/* Search / Filter Bar */
+.filter-bar { display: flex; gap: 8px; padding: 10px 24px; background: var(--card); border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
+.filter-input { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; min-width: 220px; background: var(--input-bg); color: var(--text); font-family: inherit; }
+.filter-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(13,148,136,0.1); }
+.filter-select { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: var(--input-bg); color: var(--text); cursor: pointer; }
+.filter-label { font-size: 12px; color: var(--text-lighter); font-weight: 500; }
+.filter-count { font-size: 11px; color: var(--text-lighter); margin-left: auto; }
+
+/* Batch Actions */
+.batch-bar { display: flex; gap: 6px; padding: 8px 24px; background: var(--card); border-bottom: 1px solid var(--border); align-items: center; flex-wrap: wrap; }
+.batch-btn { padding: 5px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all 0.15s; }
+.batch-approve { background: var(--approve-bg); color: #047857; }
+.batch-approve:hover { background: var(--approve); color: white; }
+.batch-reject { background: var(--reject-bg); color: #b91c1c; }
+.batch-reject:hover { background: var(--reject); color: white; }
+.batch-skip { background: var(--skip-bg); color: #374151; }
+.batch-skip:hover { background: var(--skip); color: white; }
+.batch-btn.selected { outline: 2px solid var(--accent); outline-offset: 1px; font-weight: 700; }
+.batch-approve.selected { background: var(--approve); color: white; }
+.batch-skip.selected { background: var(--skip); color: white; }
+.batch-divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+.batch-label { font-size: 11px; color: var(--text-lighter); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Task Grid - Cards View */
+.task-grid { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+.task-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; transition: all 0.2s; }
+.task-card:hover { box-shadow: var(--shadow-lg); }
+.task-card.decided-approve { border-left: 4px solid var(--approve); }
+.task-card.decided-reject { border-left: 4px solid var(--reject); }
+.task-card.decided-skip { border-left: 4px solid var(--skip); }
+
+.card-header { padding: 16px 20px 12px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.card-meta { flex: 1; }
+.card-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+.badge-fu30 { background: #dbeafe; color: #1e40af; }
+.badge-follow-up { background: #fef3c7; color: #92400e; }
+.badge-renewal { background: #ede9fe; color: #5b21b6; }
+.badge-po-pending { background: #fce7f3; color: #9d174d; }
+
+.card-deal { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.card-deal a { color: inherit; text-decoration: none; }
+.card-deal a:hover { color: var(--accent); text-decoration: underline; }
+.card-contact { font-size: 13px; color: var(--text-light); }
+.card-action { font-size: 13px; color: var(--text); padding: 0 20px 12px; }
+.card-gmail { font-size: 12px; color: var(--text-lighter); padding: 0 20px 12px; font-style: italic; background: var(--bg); margin: 0 12px 12px; padding: 8px 12px; border-radius: 6px; border-left: 3px solid var(--border); }
+
+/* Decision Buttons */
+.card-actions { padding: 0 20px 16px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.action-btn { padding: 7px 16px; border: 1px solid; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; background: var(--card); }
+.btn-approve { color: var(--approve); border-color: var(--approve-border); }
+.btn-approve:hover, .btn-approve.selected { background: var(--approve); color: white; }
+.btn-reject { color: var(--reject); border-color: var(--reject-border); }
+.btn-reject:hover, .btn-reject.selected { background: var(--reject); color: white; }
+.btn-skip { color: var(--skip); border-color: var(--skip-border); }
+.btn-skip:hover, .btn-skip.selected { background: var(--skip); color: white; }
+.btn-edit { color: var(--accent); border-color: var(--accent); }
+.btn-edit:hover { background: var(--accent); color: white; }
+
+/* Email Editor */
+.email-editor { padding: 0 20px 16px; display: none; }
+.email-editor.open { display: block; }
+.email-field { margin-bottom: 10px; }
+.email-field label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--text-lighter); margin-bottom: 4px; letter-spacing: 0.05em; }
+.email-field input, .email-field textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; color: var(--text); resize: vertical; background: var(--input-bg); }
+.email-field input:focus, .email-field textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(13,148,136,0.1); }
+.email-field textarea { min-height: 120px; line-height: 1.5; }
+.char-count { font-size: 10px; color: var(--text-lighter); text-align: right; margin-top: 2px; }
+
+/* Successor Toggle */
+.successor-row { display: flex; align-items: center; gap: 10px; padding: 8px 20px 16px; font-size: 13px; }
+.successor-toggle { position: relative; width: 36px; height: 20px; }
+.successor-toggle input { opacity: 0; width: 0; height: 0; }
+.successor-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #cbd5e1; border-radius: 20px; transition: 0.2s; }
+.successor-slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background: white; border-radius: 50%; transition: 0.2s; }
+.successor-toggle input:checked + .successor-slider { background: var(--accent); }
+.successor-toggle input:checked + .successor-slider:before { transform: translateX(16px); }
+.successor-days { width: 50px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; text-align: center; background: var(--input-bg); color: var(--text); }
+.reject-reason { margin-top: 8px; padding: 0 20px 12px; }
+.reject-reason input { width: 100%; padding: 8px 12px; border: 1px solid var(--reject-border); border-radius: 6px; font-size: 13px; background: var(--reject-bg); color: var(--text); }
+
+/* Compact View */
+.view-compact .task-card { border-radius: 6px; }
+.compact-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px; flex-wrap: wrap; }
+.compact-row .card-badge { margin-bottom: 0; font-size: 10px; }
+.compact-deal { font-weight: 600; font-size: 14px; flex: 1; min-width: 200px; }
+.compact-contact { font-size: 12px; color: var(--text-light); min-width: 150px; }
+.compact-actions { display: flex; gap: 4px; }
+.compact-actions .action-btn { padding: 4px 10px; font-size: 11px; }
+.compact-expand { padding: 0 16px 12px; border-top: 1px solid var(--border); margin-top: 4px; padding-top: 12px; }
+
+/* Kanban View */
+.kanban-container { display: flex; gap: 16px; padding: 20px 24px; overflow-x: auto; min-height: calc(100vh - 280px); }
+.kanban-column { flex: 1; min-width: 280px; max-width: 340px; background: var(--bg); border-radius: var(--radius); display: flex; flex-direction: column; }
+.kanban-col-header { padding: 12px 16px; font-weight: 600; font-size: 14px; border-radius: var(--radius) var(--radius) 0 0; display: flex; align-items: center; justify-content: space-between; }
+.kanban-col-header .count { font-size: 12px; background: rgba(0,0,0,0.1); padding: 2px 8px; border-radius: 10px; }
+.col-pending .kanban-col-header { background: #fef3c7; color: #92400e; }
+.col-approved .kanban-col-header { background: var(--approve-bg); color: #047857; }
+.col-rejected .kanban-col-header { background: var(--reject-bg); color: #b91c1c; }
+.col-skipped .kanban-col-header { background: var(--skip-bg); color: #374151; }
+.kanban-col-body { padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 10px; min-height: 100px; transition: background 0.15s; }
+.kanban-col-body.drag-over { background: rgba(13,148,136,0.08); border-radius: 0 0 var(--radius) var(--radius); }
+.kanban-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; cursor: grab; box-shadow: var(--shadow); transition: all 0.15s; user-select: none; }
+.kanban-card:hover { box-shadow: var(--shadow-lg); }
+.kanban-card.dragging { opacity: 0.5; transform: rotate(2deg); }
+.kanban-card .card-badge { font-size: 10px; margin-bottom: 6px; }
+.kanban-card-deal { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+.kanban-card-deal a { color: inherit; text-decoration: none; }
+.kanban-card-deal a:hover { color: var(--accent); }
+.kanban-card-contact { font-size: 11px; color: var(--text-light); margin-bottom: 6px; }
+.kanban-card-action { font-size: 11px; color: var(--text-lighter); margin-bottom: 8px; }
+.kanban-card-gmail { font-size: 10px; color: var(--text-lighter); font-style: italic; background: var(--bg); padding: 6px 8px; border-radius: 4px; margin-bottom: 8px; border-left: 2px solid var(--border); }
+.kanban-card-btns { display: flex; gap: 4px; flex-wrap: wrap; }
+.kanban-card-btns .action-btn { padding: 3px 8px; font-size: 10px; }
+.kanban-email-editor { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+.kanban-email-editor label { display: block; font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--text-lighter); margin-bottom: 2px; margin-top: 6px; }
+.kanban-email-editor input { width: 100%; padding: 5px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; font-family: inherit; background: var(--input-bg); color: var(--text); }
+.kanban-email-editor textarea { width: 100%; padding: 5px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; font-family: inherit; min-height: 80px; resize: vertical; background: var(--input-bg); color: var(--text); }
+.kanban-email-editor input:focus, .kanban-email-editor textarea:focus { outline: none; border-color: var(--accent); }
+.kanban-successor { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11px; }
+.kanban-successor .successor-toggle { width: 30px; height: 16px; }
+.kanban-successor .successor-slider:before { height: 12px; width: 12px; }
+.kanban-successor input:checked + .successor-slider:before { transform: translateX(14px); }
+.kanban-successor .successor-days { width: 40px; padding: 2px 4px; font-size: 11px; }
+
+/* Drop placeholder */
+.drop-placeholder { border: 2px dashed var(--accent); border-radius: 8px; padding: 16px; text-align: center; color: var(--accent); font-size: 12px; background: rgba(13,148,136,0.05); }
+
+/* Export Bar */
+.export-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--header-bg); color: white; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; z-index: 100; }
+.export-bar .save-status { font-size: 12px; color: var(--text-lighter); }
+.export-claude { background: linear-gradient(135deg, #d97706, #ea580c); color: white; font-weight: 600; }
+.export-claude:hover { background: linear-gradient(135deg, #b45309, #c2410c); }
+.export-claude:disabled { opacity: 0.5; cursor: not-allowed; }
+.export-btn { padding: 8px 18px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.15s; }
+.export-primary { background: var(--accent); color: white; }
+.export-primary:hover { background: #0f766e; }
+.export-secondary { background: #334155; color: #cbd5e1; }
+.export-secondary:hover { background: #475569; color: white; }
+.export-info { font-size: 13px; flex: 1; }
+.claude-estimate { font-size: 11px; color: #fbbf24; margin-left: 8px; }
+
+/* Toast Notification */
+.toast { position: fixed; top: 24px; right: 24px; background: var(--header-bg); color: white; padding: 14px 20px; border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); z-index: 1000; font-size: 13px; transform: translateX(120%); transition: transform 0.3s ease; max-width: 360px; border-left: 4px solid var(--accent); }
+.toast.show { transform: translateX(0); }
+.toast-title { font-weight: 600; margin-bottom: 4px; }
+.toast-body { color: var(--text-lighter); font-size: 12px; }
+
+/* Utility */
+.hidden { display: none !important; }
+body { padding-bottom: 64px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Task Approval Dashboard</h1>
+    <div class="header-date" id="dateDisplay"></div>
+  </div>
+  <div class="header-right">
+    <div class="auto-save-indicator" id="autoSaveIndicator">
+      <span class="auto-save-dot" id="autoSaveDot"></span>
+      <span id="autoSaveText">Saved</span>
+    </div>
+    <button class="dark-toggle" id="darkToggle" onclick="toggleDarkMode()">Dark</button>
+  </div>
+</div>
+
+<div class="stats-bar" id="statsBar"></div>
+
+<div class="controls">
+  <button class="view-btn active" onclick="setView('cards')">Cards</button>
+  <button class="view-btn" onclick="setView('compact')">Compact</button>
+  <button class="view-btn" onclick="setView('kanban')">Kanban</button>
+</div>
+
+<div class="filter-bar">
+  <span class="filter-label">Search:</span>
+  <input class="filter-input" type="text" id="searchInput" placeholder="Filter by deal name, contact, or email..." oninput="onFilterChange()">
+  <span class="filter-label">Type:</span>
+  <select class="filter-select" id="typeFilter" onchange="onFilterChange()">
+    <option value="">All Types</option>
+  </select>
+  <span class="filter-label">Status:</span>
+  <select class="filter-select" id="statusFilter" onchange="onFilterChange()">
+    <option value="">All</option>
+    <option value="pending">Pending</option>
+    <option value="approve">Approved</option>
+    <option value="reject">Rejected</option>
+    <option value="skip">Skipped</option>
+  </select>
+  <span class="filter-count" id="filterCount"></span>
+</div>
+
+<div class="batch-bar" id="batchBar"></div>
+
+<div class="task-grid" id="taskGrid"></div>
+<div id="kanbanContainer" class="hidden"></div>
+
+<div class="export-bar">
+  <div class="export-info" id="exportInfo">No decisions yet</div>
+  <span class="save-status" id="saveStatus"></span>
+  <button class="export-btn export-secondary" onclick="copyToClipboard()">Copy to Clipboard</button>
+  <button class="export-btn export-primary" onclick="saveToFile()">Save to Folder</button>
+  <button class="export-btn export-claude" onclick="sendToClaude()">Send to Claude <span class="claude-estimate" id="claudeEstimate"></span></button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <div class="toast-title" id="toastTitle"></div>
+  <div class="toast-body" id="toastBody"></div>
+</div>
+
+<script>
+// ============= DATA INJECTION HOOK =============
+// If the daily-task-engine injects data via window.TASK_DATA_INJECT, use it.
+// Otherwise fall back to sample data for testing.
+const SAMPLE_DATA = [
+  {
+    id: 'task_001', type: 'FU30',
+    dealName: 'Riverside USD - MS120-48 Refresh',
+    dealUrl: 'https://crm.zoho.com/crm/org647122552/tab/Potentials/123456',
+    contactName: 'Sarah Mitchell', contactEmail: 'smitchell@riverside.k12.ca.us',
+    proposedAction: 'Send 30-day check-in email',
+    gmailContext: 'Last email 2/8: Sarah confirmed deployment complete, mentioned wanting to look at MV cameras next quarter.',
+    emailDraft: {
+      to: 'smitchell@riverside.k12.ca.us',
+      subject: 'Quick check-in - How\'s the MS120 deployment going?',
+      body: 'Hey Sarah!\n\nIt\'s been about a month since we wrapped up the MS120-48 refresh and I wanted to check in. How\'s everything running? Are you seeing the performance improvements we talked about?\n\nI remember you mentioned looking into MV cameras for the front office area next quarter. If that\'s still on your radar, I can start putting together some options.\n\nHow does everything look?'
+    },
+    successorDefault: { recommended: true, days: 30, type: 'FU30' }
+  },
+  {
+    id: 'task_002', type: 'Follow-up',
+    dealName: 'Acme Manufacturing - MX250 + MS390',
+    dealUrl: 'https://crm.zoho.com/crm/org647122552/tab/Potentials/234567',
+    contactName: 'James Crawford', contactEmail: 'jcrawford@acmemfg.com',
+    proposedAction: 'Follow up on quote sent 3/4',
+    gmailContext: 'Quote sent 3/4. James asked about MS390 stacking capabilities. No response since.',
+    emailDraft: {
+      to: 'jcrawford@acmemfg.com',
+      subject: 'Re: Acme Manufacturing - MX250 + MS390 Quote',
+      body: 'Hey James!\n\nJust circling back on the quote I sent over last week for the MX250 and MS390 stack. Wanted to make sure everything looked good and see if you had any questions.\n\nThe Cisco promo pricing on the MS390 line is valid through end of March, so we\'ve got a bit of time but I didn\'t want it to sneak up on us.\n\nHave you had a chance to review?'
+    },
+    successorDefault: { recommended: true, days: 3, type: 'Follow-up' }
+  },
+  {
+    id: 'task_003', type: 'Renewal',
+    dealName: 'Pacific Coast Logistics - MR License Renewal',
+    dealUrl: 'https://crm.zoho.com/crm/org647122552/tab/Potentials/345678',
+    contactName: 'Maria Santos', contactEmail: 'msantos@pclogistics.com',
+    proposedAction: 'Send renewal reminder - licenses expire 4/15',
+    gmailContext: 'No recent email thread. Last contact was initial sale 3 years ago. 18x MR46 licenses expiring.',
+    emailDraft: {
+      to: 'msantos@pclogistics.com',
+      subject: 'Meraki License Renewal - Expiring 4/15',
+      body: 'Hey Maria!\n\nI wanted to give you a heads up that your Meraki MR access point licenses are coming up for renewal on April 15th. You\'ve got 18 MR46 licenses that will need to be renewed to keep your dashboard access and cloud management active.\n\nI\'ve put together renewal options at 1, 3, and 5-year terms. The 3-year option gives you the best per-year pricing and keeps you locked in through 2029.\n\nWould you like me to send over the renewal quote? Or if you\'d prefer, we can jump on a quick call to go over the options.'
+    },
+    successorDefault: { recommended: true, days: 5, type: 'Follow-up' }
+  },
+  {
+    id: 'task_004', type: 'Follow-up',
+    dealName: 'Summit Health - CW9166 Deployment',
+    dealUrl: 'https://crm.zoho.com/crm/org647122552/tab/Potentials/456789',
+    contactName: 'David Park', contactEmail: 'dpark@summithealth.org',
+    proposedAction: 'Check on PO status - verbal approval received 3/3',
+    gmailContext: 'David confirmed verbal approval 3/3. Waiting on procurement to issue PO. Budget already allocated.',
+    emailDraft: {
+      to: 'dpark@summithealth.org',
+      subject: 'Re: Summit Health - CW9166 Deployment Quote',
+      body: 'Hey David!\n\nHope you had a great weekend. Just checking in on the PO for the CW9166 deployment. Last we spoke you mentioned verbal approval came through and you were just waiting on procurement to issue the PO.\n\nAny update on the timeline? Happy to provide any additional documentation if procurement needs anything from our side.\n\nWhat\'s the latest?'
+    },
+    successorDefault: { recommended: true, days: 3, type: 'Follow-up' }
+  },
+  {
+    id: 'task_005', type: 'FU30',
+    dealName: 'Central Valley Ag - MT30 Sensors',
+    dealUrl: 'https://crm.zoho.com/crm/org647122552/tab/Potentials/567890',
+    contactName: 'Tom Bradley', contactEmail: 'tbradley@centralvalleyag.com',
+    proposedAction: 'Send 30-day check-in - sensors deployed 2/5',
+    gmailContext: 'Sensors deployed 2/5. Tom mentioned potential cold storage expansion. No issues reported.',
+    emailDraft: {
+      to: 'tbradley@centralvalleyag.com',
+      subject: 'Check-in - How are the MT30 sensors working out?',
+      body: 'Hey Tom!\n\nIt\'s been about a month since we got those MT30 sensors set up in the greenhouses and I wanted to see how things are going. Are you getting the temperature and humidity alerts you needed?\n\nI remember you mentioned wanting to potentially add sensors to the cold storage facility as well. If that\'s still on your radar, I can put together a quick quote for those units.\n\nHow\'s everything looking so far?'
+    },
+    successorDefault: { recommended: false, days: 0, type: 'None' }
+  }
+];
+
+const TASK_DATA = window.TASK_DATA_INJECT || SAMPLE_DATA;
+
+// ============= STATE =============
+const state = {
+  tasks: TASK_DATA,
+  filteredTasks: TASK_DATA,
+  decisions: {},
+  rejectReasons: {},
+  editedSubjects: {},
+  editedBodies: {},
+  successors: {},
+  expandedEditors: {},
+  view: 'cards',
+  draggedTaskId: null,
+  darkMode: false,
+  searchQuery: '',
+  typeFilter: '',
+  statusFilter: '',
+  lastSavedHash: '',
+  hasUnsavedChanges: false
+};
+
+// Initialize successor defaults
+TASK_DATA.forEach(t => {
+  state.successors[t.id] = {
+    enabled: t.successorDefault.recommended,
+    days: t.successorDefault.recommended ? t.successorDefault.days : 3
+  };
+});
+
+// Populate type filter options
+const taskTypes = [...new Set(TASK_DATA.map(t => t.type))];
+const typeSelect = document.getElementById('typeFilter');
+taskTypes.forEach(type => {
+  const opt = document.createElement('option');
+  opt.value = type; opt.textContent = type;
+  typeSelect.appendChild(opt);
+});
+
+// ============= HELPERS =============
+function getCurrentSubject(t) {
+  return state.editedSubjects[t.id] !== undefined ? state.editedSubjects[t.id] : (t.emailDraft ? t.emailDraft.subject : '');
+}
+function getCurrentBody(t) {
+  return state.editedBodies[t.id] !== undefined ? state.editedBodies[t.id] : (t.emailDraft ? t.emailDraft.body : '');
+}
+function isEdited(t) {
+  if (!t.emailDraft) return false;
+  return (state.editedBodies[t.id] !== undefined && state.editedBodies[t.id] !== t.emailDraft.body) ||
+         (state.editedSubjects[t.id] !== undefined && state.editedSubjects[t.id] !== t.emailDraft.subject);
+}
+function badgeClass(type) {
+  const map = { 'FU30': 'badge-fu30', 'Follow-up': 'badge-follow-up', 'Renewal': 'badge-renewal', 'PO-Pending': 'badge-po-pending' };
+  return map[type] || 'badge-follow-up';
+}
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function getStateHash() {
+  return JSON.stringify({d: state.decisions, r: state.rejectReasons, s: state.editedSubjects, b: state.editedBodies, sc: state.successors});
+}
+
+// ============= FILTER =============
+function onFilterChange() {
+  state.searchQuery = document.getElementById('searchInput').value.toLowerCase();
+  state.typeFilter = document.getElementById('typeFilter').value;
+  state.statusFilter = document.getElementById('statusFilter').value;
+  applyFilters();
+  render();
+}
+
+function applyFilters() {
+  state.filteredTasks = state.tasks.filter(t => {
+    // Text search
+    if (state.searchQuery) {
+      const q = state.searchQuery;
+      const match = t.dealName.toLowerCase().includes(q) ||
+                    t.contactName.toLowerCase().includes(q) ||
+                    t.contactEmail.toLowerCase().includes(q) ||
+                    t.proposedAction.toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    // Type filter
+    if (state.typeFilter && t.type !== state.typeFilter) return false;
+    // Status filter
+    if (state.statusFilter) {
+      const d = state.decisions[t.id] || 'pending';
+      if (d !== state.statusFilter) return false;
+    }
+    return true;
+  });
+  // Update filter count
+  document.getElementById('filterCount').textContent =
+    state.filteredTasks.length === state.tasks.length ? '' :
+    `Showing ${state.filteredTasks.length} of ${state.tasks.length}`;
+}
+
+// ============= DECISIONS =============
+function decide(taskId, decision) {
+  if (state.decisions[taskId] === decision) {
+    delete state.decisions[taskId];
+  } else {
+    state.decisions[taskId] = decision;
+  }
+  markUnsaved();
+  render();
+}
+
+function batchDecide(decision, typeFilter) {
+  const targets = typeFilter
+    ? state.filteredTasks.filter(t => t.type === typeFilter)
+    : state.filteredTasks;
+  const allAlready = targets.length > 0 && targets.every(t => state.decisions[t.id] === decision);
+  if (allAlready) {
+    targets.forEach(t => { delete state.decisions[t.id]; });
+  } else {
+    targets.forEach(t => { state.decisions[t.id] = decision; });
+  }
+  markUnsaved();
+  render();
+}
+function batchReset(typeFilter) {
+  const targets = typeFilter
+    ? state.filteredTasks.filter(t => t.type === typeFilter)
+    : state.filteredTasks;
+  targets.forEach(t => { delete state.decisions[t.id]; });
+  markUnsaved();
+  render();
+}
+
+function toggleEditor(taskId) {
+  const current = (state.expandedEditors[taskId] !== undefined) ? state.expandedEditors[taskId] : true;
+  state.expandedEditors[taskId] = !current;
+  render();
+}
+function onSubjectEdit(taskId, val) { state.editedSubjects[taskId] = val; markUnsaved(); updateGlobalDecisions(); }
+function onBodyEdit(taskId, val) { state.editedBodies[taskId] = val; markUnsaved(); updateGlobalDecisions(); }
+function onRejectReason(taskId, val) { state.rejectReasons[taskId] = val; markUnsaved(); updateGlobalDecisions(); }
+function toggleSuccessor(taskId) {
+  state.successors[taskId].enabled = !state.successors[taskId].enabled;
+  markUnsaved();
+  updateGlobalDecisions();
+  render();
+}
+function setSuccessorDays(taskId, val) {
+  state.successors[taskId].days = parseInt(val) || 3;
+  markUnsaved();
+  updateGlobalDecisions();
+}
+
+// ============= DARK MODE =============
+function toggleDarkMode() {
+  state.darkMode = !state.darkMode;
+  document.documentElement.setAttribute('data-theme', state.darkMode ? 'dark' : '');
+  document.getElementById('darkToggle').textContent = state.darkMode ? 'Light' : 'Dark';
+  localStorage.setItem('taskDashDarkMode', state.darkMode ? '1' : '0');
+}
+// Restore dark mode preference
+if (localStorage.getItem('taskDashDarkMode') === '1') {
+  state.darkMode = true;
+  document.documentElement.setAttribute('data-theme', 'dark');
+  document.getElementById('darkToggle').textContent = 'Light';
+}
+
+// ============= VIEW SWITCHING =============
+function setView(v) {
+  state.view = v;
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.view-btn').forEach(b => { if (b.textContent.toLowerCase() === v) b.classList.add('active'); });
+  render();
+}
+
+// ============= RENDER =============
+function render() {
+  renderDate();
+  renderStats();
+  renderBatchBar();
+  applyFilters();
+  const grid = document.getElementById('taskGrid');
+  const kanban = document.getElementById('kanbanContainer');
+
+  if (state.view === 'kanban') {
+    grid.classList.add('hidden');
+    kanban.classList.remove('hidden');
+    renderKanbanView();
+  } else {
+    kanban.classList.add('hidden');
+    grid.classList.remove('hidden');
+    if (state.view === 'compact') renderCompactView();
+    else renderCardsView();
+  }
+  renderExportBar();
+  updateGlobalDecisions();
+  updateClaudeEstimate();
+}
+
+function renderDate() {
+  document.getElementById('dateDisplay').textContent = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function renderStats() {
+  const total = state.tasks.length;
+  const approved = Object.values(state.decisions).filter(d => d === 'approve').length;
+  const rejected = Object.values(state.decisions).filter(d => d === 'reject').length;
+  const skipped = Object.values(state.decisions).filter(d => d === 'skip').length;
+  const pending = total - approved - rejected - skipped;
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat stat-total"><span class="stat-count">${total}</span> Total</div>
+    <div class="stat stat-pending"><span class="stat-count">${pending}</span> Pending</div>
+    <div class="stat stat-approved"><span class="stat-count">${approved}</span> Approved</div>
+    <div class="stat stat-rejected"><span class="stat-count">${rejected}</span> Rejected</div>
+    <div class="stat stat-skipped"><span class="stat-count">${skipped}</span> Skipped</div>
+  `;
+}
+
+function renderBatchBar() {
+  const total = state.filteredTasks.length;
+  const decided = state.filteredTasks.filter(t => state.decisions[t.id]).length;
+  const allApproved = total > 0 && state.filteredTasks.every(t => state.decisions[t.id] === 'approve');
+  const allSkipped = total > 0 && state.filteredTasks.every(t => state.decisions[t.id] === 'skip');
+
+  const byType = {};
+  state.filteredTasks.forEach(t => {
+    if (!byType[t.type]) byType[t.type] = { total: 0, approved: 0, decided: 0 };
+    byType[t.type].total++;
+    if (state.decisions[t.id]) byType[t.type].decided++;
+    if (state.decisions[t.id] === 'approve') byType[t.type].approved++;
+  });
+  const types = Object.keys(byType);
+
+  let html = '<span class="batch-label">Batch:</span>';
+  html += `<button class="batch-btn batch-approve${allApproved ? ' selected' : ''}" onclick="batchDecide('approve')">${allApproved ? 'Undo Approve All' : 'Approve All'} (${total})</button>`;
+  html += `<button class="batch-btn batch-skip${allSkipped ? ' selected' : ''}" onclick="batchDecide('skip')">${allSkipped ? 'Undo Skip All' : 'Skip All'} (${total})</button>`;
+  if (decided > 0) {
+    html += `<button class="batch-btn" style="background:#fef3c7;color:#92400e;" onclick="batchReset()">Reset All (${decided})</button>`;
+  }
+
+  if (types.length > 1) {
+    html += '<span class="batch-divider"></span>';
+    html += '<span class="batch-label">By Type:</span>';
+    types.forEach(type => {
+      const info = byType[type];
+      const typeAllApproved = info.total > 0 && info.approved === info.total;
+      html += `<button class="batch-btn batch-approve${typeAllApproved ? ' selected' : ''}" onclick="batchDecide('approve','${type}')">${typeAllApproved ? 'Undo' : 'Approve'} ${type} (${info.total})</button>`;
+    });
+  }
+
+  document.getElementById('batchBar').innerHTML = html;
+}
+
+// ============= CARDS VIEW =============
+function renderCardsView() {
+  const grid = document.getElementById('taskGrid');
+  grid.className = 'task-grid';
+  grid.innerHTML = state.filteredTasks.map(t => renderFullCard(t)).join('');
+}
+
+function renderFullCard(t) {
+  const d = state.decisions[t.id];
+  const decClass = d ? `decided-${d}` : '';
+  const editorOpen = (state.expandedEditors[t.id] !== undefined) ? state.expandedEditors[t.id] : true;
+  const succ = state.successors[t.id];
+  const curSubject = getCurrentSubject(t);
+  const curBody = getCurrentBody(t);
+  const edited = isEdited(t);
+
+  return `<div class="task-card ${decClass}">
+    <div class="card-header">
+      <div class="card-meta">
+        <span class="card-badge ${badgeClass(t.type)}">${t.type}${edited ? ' (edited)' : ''}</span>
+        <div class="card-deal"><a href="${t.dealUrl}" target="_blank">${escHtml(t.dealName)}</a></div>
+        <div class="card-contact">${escHtml(t.contactName)} &mdash; ${escHtml(t.contactEmail)}</div>
+      </div>
+    </div>
+    <div class="card-action"><strong>Action:</strong> ${escHtml(t.proposedAction)}</div>
+    ${t.gmailContext ? `<div class="card-gmail">${escHtml(t.gmailContext)}</div>` : ''}
+    <div class="card-actions">
+      <button class="action-btn btn-approve ${d === 'approve' ? 'selected' : ''}" onclick="decide('${t.id}','approve')">Approve</button>
+      <button class="action-btn btn-reject ${d === 'reject' ? 'selected' : ''}" onclick="decide('${t.id}','reject')">Reject</button>
+      <button class="action-btn btn-skip ${d === 'skip' ? 'selected' : ''}" onclick="decide('${t.id}','skip')">Skip</button>
+      ${t.emailDraft ? `<button class="action-btn btn-edit" onclick="toggleEditor('${t.id}')">${editorOpen ? 'Close Editor' : 'Edit Email'}</button>` : ''}
+    </div>
+    ${d === 'reject' ? `<div class="reject-reason"><input type="text" placeholder="Reason for rejecting..." value="${escHtml(state.rejectReasons[t.id] || '')}" oninput="onRejectReason('${t.id}', this.value)"></div>` : ''}
+    ${t.emailDraft ? `<div class="email-editor ${editorOpen ? 'open' : ''}">
+      <div class="email-field"><label>To</label><input type="text" value="${escHtml(t.emailDraft.to)}" disabled></div>
+      <div class="email-field"><label>Subject ${edited ? '(edited)' : ''}</label><input type="text" value="${escHtml(curSubject)}" oninput="onSubjectEdit('${t.id}', this.value)"></div>
+      <div class="email-field"><label>Body ${edited ? '(edited)' : ''}</label><textarea oninput="onBodyEdit('${t.id}', this.value)">${escHtml(curBody)}</textarea><div class="char-count">${curBody.length} chars</div></div>
+    </div>` : ''}
+    <div class="successor-row">
+      <label class="successor-toggle"><input type="checkbox" ${succ.enabled ? 'checked' : ''} onchange="toggleSuccessor('${t.id}')"><span class="successor-slider"></span></label>
+      <span>Successor task</span>
+      ${succ.enabled ? `<span>in</span><input type="number" class="successor-days" value="${succ.days}" min="1" max="90" onchange="setSuccessorDays('${t.id}', this.value)"><span>days</span>` : '<span style="color:var(--text-lighter)">(off)</span>'}
+    </div>
+  </div>`;
+}
+
+// ============= COMPACT VIEW =============
+function renderCompactView() {
+  const grid = document.getElementById('taskGrid');
+  grid.className = 'task-grid view-compact';
+  grid.innerHTML = state.filteredTasks.map(t => {
+    const d = state.decisions[t.id];
+    const decClass = d ? `decided-${d}` : '';
+    const expanded = state.expandedEditors[t.id];
+    const succ = state.successors[t.id];
+    const edited = isEdited(t);
+    const curSubject = getCurrentSubject(t);
+    const curBody = getCurrentBody(t);
+
+    return `<div class="task-card ${decClass}">
+      <div class="compact-row">
+        <span class="card-badge ${badgeClass(t.type)}">${t.type}${edited ? '*' : ''}</span>
+        <span class="compact-deal"><a href="${t.dealUrl}" target="_blank">${escHtml(t.dealName)}</a></span>
+        <span class="compact-contact">${escHtml(t.contactName)}</span>
+        <div class="compact-actions">
+          <button class="action-btn btn-approve ${d === 'approve' ? 'selected' : ''}" onclick="decide('${t.id}','approve')">&#10003;</button>
+          <button class="action-btn btn-reject ${d === 'reject' ? 'selected' : ''}" onclick="decide('${t.id}','reject')">&#10007;</button>
+          <button class="action-btn btn-skip ${d === 'skip' ? 'selected' : ''}" onclick="decide('${t.id}','skip')">&#8212;</button>
+          <button class="action-btn btn-edit" onclick="toggleEditor('${t.id}')">${expanded ? '&#9650;' : '&#9660;'}</button>
+        </div>
+      </div>
+      ${expanded ? `<div class="compact-expand">
+        <div style="font-size:12px; color:var(--text-lighter); margin-bottom:8px;">${escHtml(t.proposedAction)}</div>
+        ${t.gmailContext ? `<div class="card-gmail" style="margin:0 0 8px">${escHtml(t.gmailContext)}</div>` : ''}
+        ${d === 'reject' ? `<div class="reject-reason" style="padding:0 0 8px"><input type="text" placeholder="Reason..." value="${escHtml(state.rejectReasons[t.id] || '')}" oninput="onRejectReason('${t.id}', this.value)"></div>` : ''}
+        ${t.emailDraft ? `<div class="email-editor open">
+          <div class="email-field"><label>Subject</label><input type="text" value="${escHtml(curSubject)}" oninput="onSubjectEdit('${t.id}', this.value)"></div>
+          <div class="email-field"><label>Body</label><textarea oninput="onBodyEdit('${t.id}', this.value)">${escHtml(curBody)}</textarea><div class="char-count">${curBody.length} chars</div></div>
+        </div>` : ''}
+        <div class="successor-row" style="padding:8px 0 0">
+          <label class="successor-toggle"><input type="checkbox" ${succ.enabled ? 'checked' : ''} onchange="toggleSuccessor('${t.id}')"><span class="successor-slider"></span></label>
+          <span style="font-size:12px;">Successor</span>
+          ${succ.enabled ? `<input type="number" class="successor-days" value="${succ.days}" min="1" max="90" onchange="setSuccessorDays('${t.id}', this.value)"><span style="font-size:12px;">days</span>` : ''}
+        </div>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ============= KANBAN VIEW (DRAG & DROP) =============
+function renderKanbanView() {
+  const kanban = document.getElementById('kanbanContainer');
+  const columns = [
+    { key: 'pending', label: 'Pending', colClass: 'col-pending' },
+    { key: 'approve', label: 'Approved', colClass: 'col-approved' },
+    { key: 'reject', label: 'Rejected', colClass: 'col-rejected' },
+    { key: 'skip', label: 'Skipped', colClass: 'col-skipped' }
+  ];
+
+  const filteredIds = new Set(state.filteredTasks.map(t => t.id));
+  const grouped = { pending: [], approve: [], reject: [], skip: [] };
+  state.tasks.forEach(t => {
+    if (!filteredIds.has(t.id)) return;
+    const d = state.decisions[t.id] || 'pending';
+    grouped[d].push(t);
+  });
+
+  kanban.className = 'kanban-container';
+  kanban.innerHTML = columns.map(col => `
+    <div class="kanban-column ${col.colClass}">
+      <div class="kanban-col-header">${col.label} <span class="count">${grouped[col.key].length}</span></div>
+      <div class="kanban-col-body" data-column="${col.key}"
+        ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event, '${col.key}')">
+        ${grouped[col.key].map(t => renderKanbanCard(t, col.key)).join('')}
+        ${grouped[col.key].length === 0 ? '<div class="drop-placeholder">Drop tasks here</div>' : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderKanbanCard(t, colKey) {
+  const expanded = (state.expandedEditors[t.id] !== undefined) ? state.expandedEditors[t.id] : true;
+  const edited = isEdited(t);
+  const succ = state.successors[t.id];
+  const curSubject = getCurrentSubject(t);
+  const curBody = getCurrentBody(t);
+
+  let btns = '';
+  if (colKey === 'pending') {
+    btns = `
+      <button class="action-btn btn-approve" onclick="decide('${t.id}','approve')">Approve</button>
+      <button class="action-btn btn-reject" onclick="decide('${t.id}','reject')">Reject</button>
+      <button class="action-btn btn-skip" onclick="decide('${t.id}','skip')">Skip</button>`;
+  } else {
+    btns = `<button class="action-btn" style="color:var(--text-light);border-color:var(--border)" onclick="undecide('${t.id}')">Undo</button>`;
+  }
+
+  return `<div class="kanban-card" draggable="true" data-task-id="${t.id}"
+    ondragstart="onDragStart(event, '${t.id}')" ondragend="onDragEnd(event)">
+    <span class="card-badge ${badgeClass(t.type)}">${t.type}${edited ? '*' : ''}</span>
+    <div class="kanban-card-deal"><a href="${t.dealUrl}" target="_blank">${escHtml(t.dealName)}</a></div>
+    <div class="kanban-card-contact">${escHtml(t.contactName)} &mdash; ${escHtml(t.contactEmail)}</div>
+    <div class="kanban-card-action">${escHtml(t.proposedAction)}</div>
+    ${t.gmailContext ? `<div class="kanban-card-gmail">${escHtml(t.gmailContext)}</div>` : ''}
+    <div class="kanban-card-btns">
+      ${btns}
+      ${t.emailDraft ? `<button class="action-btn btn-edit" onclick="event.stopPropagation(); toggleEditor('${t.id}')">${expanded ? 'Hide Email' : 'Show Email'}</button>` : ''}
+    </div>
+    ${colKey === 'reject' ? `<div style="margin-top:6px"><input type="text" style="width:100%;padding:4px 6px;border:1px solid var(--reject-border);border-radius:4px;font-size:11px;background:var(--reject-bg);color:var(--text)" placeholder="Reason..." value="${escHtml(state.rejectReasons[t.id] || '')}" oninput="onRejectReason('${t.id}', this.value)" onclick="event.stopPropagation()"></div>` : ''}
+    ${expanded && t.emailDraft ? `<div class="kanban-email-editor" onclick="event.stopPropagation()">
+      <label>Subject</label>
+      <input type="text" value="${escHtml(curSubject)}" oninput="onSubjectEdit('${t.id}', this.value)">
+      <label>Body</label>
+      <textarea oninput="onBodyEdit('${t.id}', this.value)">${escHtml(curBody)}</textarea>
+      <div class="char-count">${curBody.length} chars</div>
+      <div class="kanban-successor">
+        <label class="successor-toggle"><input type="checkbox" ${succ.enabled ? 'checked' : ''} onchange="toggleSuccessor('${t.id}')"><span class="successor-slider"></span></label>
+        <span>Successor</span>
+        ${succ.enabled ? `<input type="number" class="successor-days" value="${succ.days}" min="1" max="90" onchange="setSuccessorDays('${t.id}', this.value)"> days` : '(off)'}
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+
+function undecide(taskId) {
+  delete state.decisions[taskId];
+  markUnsaved();
+  render();
+}
+
+// ============= DRAG & DROP =============
+function onDragStart(e, taskId) {
+  state.draggedTaskId = taskId;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', taskId);
+  setTimeout(() => { e.target.classList.add('dragging'); }, 0);
+}
+function onDragEnd(e) {
+  e.target.classList.remove('dragging');
+  state.draggedTaskId = null;
+  document.querySelectorAll('.kanban-col-body').forEach(c => c.classList.remove('drag-over'));
+}
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+function onDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+function onDrop(e, colKey) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const taskId = e.dataTransfer.getData('text/plain') || state.draggedTaskId;
+  if (!taskId) return;
+
+  if (colKey === 'pending') {
+    delete state.decisions[taskId];
+  } else {
+    state.decisions[taskId] = colKey;
+  }
+  markUnsaved();
+  render();
+}
+
+// ============= EXPORT =============
+function renderExportBar() {
+  const decided = Object.keys(state.decisions).length;
+  const total = state.tasks.length;
+  document.getElementById('exportInfo').textContent = decided === 0
+    ? 'No decisions yet'
+    : `${decided} of ${total} tasks decided`;
+}
+
+function generateExport() {
+  const lines = [];
+  lines.push('=== TASK DECISIONS ===');
+  lines.push('Generated: ' + new Date().toLocaleString());
+  lines.push('');
+  state.tasks.forEach(t => {
+    const d = state.decisions[t.id];
+    if (!d) return;
+    const edited = isEdited(t);
+    const curSubject = getCurrentSubject(t);
+    const curBody = getCurrentBody(t);
+    const succ = state.successors[t.id];
+    lines.push('[' + d.toUpperCase() + '] [' + t.type + '] ' + t.dealName);
+    lines.push('  Action: ' + t.proposedAction);
+    lines.push('  Contact: ' + t.contactName + ' <' + t.contactEmail + '>');
+    if (d === 'reject') {
+      lines.push('  Reason: ' + (state.rejectReasons[t.id] || 'No reason given'));
+    }
+    if (d === 'approve' && t.emailDraft) {
+      lines.push('  Email To: ' + t.emailDraft.to);
+      lines.push('  Email Subject: ' + curSubject);
+      lines.push('  Email Body:');
+      curBody.split('\n').forEach(line => lines.push('    ' + line));
+      if (edited) lines.push('  [EDITED FROM ORIGINAL]');
+    }
+    if (d !== 'reject') {
+      if (succ && succ.enabled) lines.push('  Successor: ' + succ.days + ' days');
+      else lines.push('  Successor: none');
+    }
+    lines.push('');
+  });
+  const approved = Object.values(state.decisions).filter(d => d === 'approve').length;
+  const rejected = Object.values(state.decisions).filter(d => d === 'reject').length;
+  const skipped = Object.values(state.decisions).filter(d => d === 'skip').length;
+  lines.push('--- Summary: ' + approved + ' approved, ' + rejected + ' rejected, ' + skipped + ' skipped ---');
+  return lines.join('\n');
+}
+
+function updateGlobalDecisions() {
+  const obj = {
+    _version: 2,
+    _timestamp: new Date().toISOString(),
+    _ready: false,
+    tasks: state.tasks.map(t => {
+      const d = state.decisions[t.id] || 'pending';
+      const succ = state.successors[t.id];
+      return {
+        id: t.id, type: t.type,
+        dealName: t.dealName, dealUrl: t.dealUrl,
+        contactName: t.contactName, contactEmail: t.contactEmail,
+        decision: d,
+        proposedAction: t.proposedAction,
+        edited: isEdited(t),
+        email: t.emailDraft ? { to: t.emailDraft.to, subject: getCurrentSubject(t), body: getCurrentBody(t) } : null,
+        successor: { enabled: succ.enabled, days: succ.days }
+      };
+    }),
+    _stats: {
+      total: state.tasks.length,
+      approved: Object.values(state.decisions).filter(d => d === 'approve').length,
+      rejected: Object.values(state.decisions).filter(d => d === 'reject').length,
+      skipped: Object.values(state.decisions).filter(d => d === 'skip').length,
+      pending: state.tasks.length - Object.keys(state.decisions).length
+    }
+  };
+  window.TASK_DECISIONS = obj;
+}
+
+// ============= SAVE / COPY =============
+let savedFileHandle = null;
+
+async function saveToFile() {
+  updateGlobalDecisions();
+  window.TASK_DECISIONS._ready = true;
+  const json = JSON.stringify(window.TASK_DECISIONS, null, 2);
+  const statusEl = document.getElementById('saveStatus');
+
+  try {
+    if ('showSaveFilePicker' in window) {
+      if (!savedFileHandle) {
+        savedFileHandle = await window.showSaveFilePicker({
+          suggestedName: 'task-decisions.json',
+          types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+        });
+      }
+      const writable = await savedFileHandle.createWritable();
+      await writable.write(json);
+      await writable.close();
+      markSaved();
+      statusEl.textContent = 'Saved ' + new Date().toLocaleTimeString();
+      statusEl.style.color = '#10b981';
+    } else {
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'task-decisions.json';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      markSaved();
+      statusEl.textContent = 'Downloaded ' + new Date().toLocaleTimeString();
+      statusEl.style.color = '#10b981';
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      statusEl.textContent = 'Save failed: ' + err.message;
+      statusEl.style.color = '#ef4444';
+    }
+  }
+}
+
+async function copyToClipboard() {
+  const text = generateExport();
+  const statusEl = document.getElementById('saveStatus');
+  try {
+    await navigator.clipboard.writeText(text);
+    statusEl.textContent = 'Copied to clipboard!';
+    statusEl.style.color = '#10b981';
+    setTimeout(() => { statusEl.textContent = ''; }, 3000);
+  } catch (err) {
+    statusEl.textContent = 'Copy failed';
+    statusEl.style.color = '#ef4444';
+  }
+}
+
+// ============= AUTO-SAVE =============
+function markUnsaved() {
+  state.hasUnsavedChanges = true;
+  document.getElementById('autoSaveDot').classList.add('unsaved');
+  document.getElementById('autoSaveText').textContent = 'Unsaved changes';
+}
+
+function markSaved() {
+  state.hasUnsavedChanges = false;
+  state.lastSavedHash = getStateHash();
+  document.getElementById('autoSaveDot').classList.remove('unsaved');
+  document.getElementById('autoSaveText').textContent = 'Saved ' + new Date().toLocaleTimeString();
+}
+
+// Auto-save every 30 seconds if file handle exists and there are unsaved changes
+setInterval(async () => {
+  if (!state.hasUnsavedChanges || !savedFileHandle) return;
+  try {
+    updateGlobalDecisions();
+    window.TASK_DECISIONS._ready = true;
+    const json = JSON.stringify(window.TASK_DECISIONS, null, 2);
+    const writable = await savedFileHandle.createWritable();
+    await writable.write(json);
+    await writable.close();
+    markSaved();
+    document.getElementById('saveStatus').textContent = 'Auto-saved ' + new Date().toLocaleTimeString();
+    document.getElementById('saveStatus').style.color = '#10b981';
+  } catch (err) {
+    // Silent fail on auto-save
+  }
+}, 30000);
+
+// ============= SEND TO CLAUDE =============
+function buildClaudePayload() {
+  updateGlobalDecisions();
+  const approved = state.tasks.filter(t => state.decisions[t.id] === 'approve');
+  const rejected = state.tasks.filter(t => state.decisions[t.id] === 'reject');
+  const skipped = state.tasks.filter(t => state.decisions[t.id] === 'skip');
+
+  if (approved.length === 0 && rejected.length === 0 && skipped.length === 0) return null;
+
+  let lines = [];
+  lines.push('Execute these approved task decisions from the Task Dashboard. Use the daily-task-engine skill and zoho-crm-email skill. Process each approved task sequentially: send the email via Pipedream (Tier 1), confirm sent, then close the Zoho task, then create successor if enabled.');
+  lines.push('');
+
+  if (approved.length > 0) {
+    lines.push('=== APPROVED TASKS ===');
+    approved.forEach(t => {
+      const succ = state.successors[t.id];
+      const edited = isEdited(t);
+      const curSubject = getCurrentSubject(t);
+      const curBody = getCurrentBody(t);
+      lines.push('');
+      lines.push('[APPROVE] [' + t.type + '] ' + t.dealName);
+      lines.push('Deal URL: ' + t.dealUrl);
+      lines.push('Contact: ' + t.contactName + ' <' + t.contactEmail + '>');
+      lines.push('Action: ' + t.proposedAction);
+      if (t.emailDraft) {
+        lines.push('Email To: ' + t.emailDraft.to);
+        lines.push('Email Subject: ' + curSubject);
+        lines.push('Email Body:');
+        curBody.split('\n').forEach(l => lines.push('  ' + l));
+        if (edited) lines.push('[EDITED FROM ORIGINAL]');
+      }
+      if (succ.enabled) lines.push('Successor: Create follow-up task in ' + succ.days + ' days');
+      else lines.push('Successor: NONE (do not create follow-up)');
+    });
+  }
+
+  if (rejected.length > 0) {
+    lines.push('');
+    lines.push('=== REJECTED TASKS ===');
+    rejected.forEach(t => {
+      lines.push('[REJECT] [' + t.type + '] ' + t.dealName + ' | Reason: ' + (state.rejectReasons[t.id] || 'No reason given'));
+    });
+  }
+
+  if (skipped.length > 0) {
+    lines.push('');
+    lines.push('=== SKIPPED TASKS ===');
+    skipped.forEach(t => {
+      lines.push('[SKIP] [' + t.type + '] ' + t.dealName);
+    });
+  }
+
+  lines.push('');
+  lines.push('Summary: ' + approved.length + ' approved, ' + rejected.length + ' rejected, ' + skipped.length + ' skipped');
+  return lines.join('\n');
+}
+
+function encodeForClaudeUrl(text) {
+  return text
+    .replace(/%/g, '%25')
+    .replace(/ /g, '%20')
+    .replace(/\n/g, '%0A')
+    .replace(/\|/g, '%7C')
+    .replace(/"/g, '%22')
+    .replace(/</g, '%3C')
+    .replace(/>/g, '%3E')
+    .replace(/#/g, '%23')
+    .replace(/&/g, '%26')
+    .replace(/\+/g, '%2B');
+}
+
+function updateClaudeEstimate() {
+  const el = document.getElementById('claudeEstimate');
+  const payload = buildClaudePayload();
+  if (!payload) { el.textContent = ''; return; }
+  const encoded = encodeForClaudeUrl(payload);
+  const tabs = encoded.length <= 7500 ? 1 : Math.ceil(encoded.length / 7500);
+  el.textContent = `~${Math.round(encoded.length / 1000)}k chars (${tabs} tab${tabs > 1 ? 's' : ''})`;
+}
+
+function showToast(title, body, duration) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastTitle').textContent = title;
+  document.getElementById('toastBody').textContent = body;
+  toast.classList.add('show');
+  setTimeout(() => { toast.classList.remove('show'); }, duration || 4000);
+}
+
+function sendToClaude() {
+  const statusEl = document.getElementById('saveStatus');
+  const payload = buildClaudePayload();
+
+  if (!payload) {
+    statusEl.textContent = 'No decisions to send';
+    statusEl.style.color = '#f59e0b';
+    setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    return;
+  }
+
+  // Show confirmation toast
+  const approved = Object.values(state.decisions).filter(d => d === 'approve').length;
+  const rejected = Object.values(state.decisions).filter(d => d === 'reject').length;
+  const skipped = Object.values(state.decisions).filter(d => d === 'skip').length;
+  showToast(
+    'Sending to Claude',
+    `${approved} approved, ${rejected} rejected, ${skipped} skipped`,
+    3000
+  );
+
+  const MAX_PAYLOAD = 7500;
+  const encoded = encodeForClaudeUrl(payload);
+
+  if (encoded.length <= MAX_PAYLOAD) {
+    const url = 'https://claude.ai/new?q=' + encoded;
+    statusEl.textContent = 'Opening Claude... (' + Math.round(encoded.length / 1000) + 'k chars)';
+    statusEl.style.color = '#10b981';
+    window.open(url, '_blank');
+  } else {
+    const chunks = [];
+    let remaining = payload;
+    let partNum = 0;
+    const totalEstimate = Math.ceil(encoded.length / MAX_PAYLOAD);
+
+    while (remaining.length > 0) {
+      partNum++;
+      let chunkSize = Math.floor(MAX_PAYLOAD / 3);
+      if (chunkSize > remaining.length) chunkSize = remaining.length;
+
+      let splitAt = chunkSize;
+      if (splitAt < remaining.length) {
+        const lastNewline = remaining.lastIndexOf('\n', splitAt);
+        if (lastNewline > splitAt * 0.5) splitAt = lastNewline + 1;
+      }
+
+      let chunk = remaining.substring(0, splitAt);
+      remaining = remaining.substring(splitAt);
+
+      let encodedChunk = encodeForClaudeUrl(chunk);
+      while (encodedChunk.length > MAX_PAYLOAD && chunk.length > 100) {
+        const lastNl = chunk.lastIndexOf('\n', chunk.length - 50);
+        if (lastNl > chunk.length * 0.5) {
+          remaining = chunk.substring(lastNl) + remaining;
+          chunk = chunk.substring(0, lastNl);
+        } else {
+          remaining = chunk.substring(chunk.length - 200) + remaining;
+          chunk = chunk.substring(0, chunk.length - 200);
+        }
+        encodedChunk = encodeForClaudeUrl(chunk);
+      }
+
+      let prefix = '';
+      let suffix = '';
+      if (partNum === 1) {
+        suffix = '\n\n[CONTINUED IN NEXT TAB - Part ' + partNum + ' of ~' + totalEstimate + ']';
+      } else if (remaining.length > 0) {
+        prefix = '[CONTINUATION - Part ' + partNum + ' of ~' + totalEstimate + ']\n\n';
+        suffix = '\n\n[CONTINUED IN NEXT TAB]';
+      } else {
+        prefix = '[FINAL PART - Part ' + partNum + ' of ' + partNum + ']\nContinue executing from previous parts.\n\n';
+      }
+
+      chunks.push(prefix + chunk + suffix);
+    }
+
+    statusEl.textContent = 'Opening ' + chunks.length + ' Claude tabs...';
+    statusEl.style.color = '#10b981';
+
+    chunks.forEach((chunk, i) => {
+      setTimeout(() => {
+        const url = 'https://claude.ai/new?q=' + encodeForClaudeUrl(chunk);
+        window.open(url, '_blank');
+      }, i * 800);
+    });
+  }
+}
+
+// ============= INIT =============
+state.lastSavedHash = getStateHash();
+render();
+</script>
+</body>
+</html>

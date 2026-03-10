@@ -8,7 +8,7 @@ Sales operations plugin for Stratus Information Systems. Covers the full Cisco/M
 |-------|-------------|
 | **zoho-crm-v30** | Core CRM operations: deals, quotes, tasks, admin actions, send-quote-to-customer pipeline |
 | **zoho-crm-email-v3-5** | Email composition and sending with Pipedream-first routing |
-| **daily-task-engine-v1-8** | Task review with canonical Zoho query, IR01 batch pre-filter, sub-agent verbosity cap, DR01 closed-won auto-close, embedded Chris Graves voice/style guide, and Phase 3 spacing+style gate |
+| **daily-task-engine-v1-9** | Interactive HTML dashboard output (default) with card/compact/kanban views, inline email editing, batch approve/skip/reject, Send to Claude integration, dark mode, and chat table fallback. Includes canonical Zoho query, IR01 batch pre-filter, sub-agent verbosity cap, DR01 closed-won auto-close, embedded voice/style guide, and Phase 3 spacing+style gate |
 | **fu30-followup-automation-v1-3** | 30-day post-sale follow-up email automation |
 | **stratus-quoting-bot-v4-6** | Cisco/Meraki URL quote generation with 1,222 SKU pricing catalog |
 | **stratus-quote-pdf-v2-0** | Stratus-branded PDF quote generation from Zoho CRM data |

@@ -1,11 +1,11 @@
 ---
-name: daily-task-engine-v1-8
-description: "6-phase daily task engine with google calendar briefing, parallel sub-agent evaluation, batch approval tables, inbox scan, gmail-first context, successor enforcement, hyperlink enforcement, and centralized voice guide. triggers: daily tasks, review my tasks, task review, task clean up, help me complete todays tasks, close out my tasks, close tasks, what tasks are due, send fu30 emails, fu30s, 30-day check-ins, run my tasks, morning tasks, task cleanup, finish my tasks, knock out my tasks, lets do tasks, whats on my plate, clear my task list, inbox scan, check my inbox, scan my email."
+name: daily-task-engine-v1-9
+description: "6-phase daily task engine with interactive html dashboard output, google calendar briefing, parallel sub-agent evaluation, batch approval tables, inbox scan, gmail-first context, successor enforcement, hyperlink enforcement, and centralized voice guide. dashboard features: card/compact/kanban views, inline email editing, drag-and-drop, dark mode, send-to-claude url injection, auto-save, search/filter, batch approve/skip/reject with toggle. triggers: daily tasks, review my tasks, task review, task clean up, help me complete todays tasks, close out my tasks, close tasks, what tasks are due, send fu30 emails, fu30s, 30-day check-ins, run my tasks, morning tasks, task cleanup, finish my tasks, knock out my tasks, lets do tasks, whats on my plate, clear my task list, inbox scan, check my inbox, scan my email."
 ---
 
-# Daily Task Engine v1.8 (Voice/Style Guide + Paragraph Spacing Enforcement)
+# Daily Task Engine v1.9 (Interactive Dashboard Output)
 
-Trigger router with **parallel sub-agent evaluation**, **inline email draft previews in approval table**, **clickable Zoho CRM and Gmail links on every row**, **per-task-type evaluation gates**, **batch approval tables**, **gmail-first context evaluation**, **strengthened successor enforcement after every action**, **inbox scan phase for email action items**, **revised draft must be shown before sending**, **reply-all thread participant enforcement**, and **embedded Chris Graves voice/style guide with mandatory paragraph spacing in sub-agent prompt and Phase 3 pre-presentation gate**.
+Trigger router with **interactive HTML dashboard output (default)**, **parallel sub-agent evaluation**, **inline email draft previews**, **clickable Zoho CRM and Gmail links**, **per-task-type evaluation gates**, **batch approval tables**, **gmail-first context evaluation**, **strengthened successor enforcement**, **inbox scan phase**, **revised draft approval rule**, **reply-all thread enforcement**, and **embedded Chris Graves voice/style guide with mandatory paragraph spacing**.
 
 ---
 
@@ -24,35 +24,35 @@ What it does:
 2. Phase 1: Pull all open tasks owned by Chris Graves, due today or overdue (canonical query)
 3. Phase 1b: IR01 pre-filter — batch-classify IR01 tasks before sub-agent launch
 4. Phase 2: Launch one sub-agent per non-IR01 task simultaneously (Task tool, single message block)
-5. Phase 3: Pre-presentation gate (spacing + style check) → build unified approval table with clickable links, inline drafts, IR01 batch row
-6. Phase 4: Run Inbox Scan in parallel while user reviews approval table
+5. Phase 3: Pre-presentation gate (spacing + style check) → transform data → write interactive HTML dashboard
+6. Phase 4: Run Inbox Scan in parallel while user reviews dashboard
 7. Phase 5: Execute approved actions sequentially (atomic task lifecycle)
 
-Skills to load: zoho-crm-v28, zoho-crm-email-v3-5
+Skills to load: zoho-crm-v30, zoho-crm-email-v3-5
 
 ### Task Cleanup (Close Only)
 
 Triggers: /CloseTasks, "close out my tasks", "close tasks", "task clean up", "task cleanup", "clear my task list", "finish my tasks"
 
-Skills to load: zoho-crm-v28
+Skills to load: zoho-crm-v30
 
 ### 30-Day Follow-Up Emails
 
 Triggers: /FU30s, "send fu30 emails", "fu30s", "30-day check-ins", "post-sale check-ins", "run fu30s", "customer check-ins"
 
-Skills to load: zoho-crm-v28, zoho-crm-email-v3-5, fu30-followup-automation-v1-3
+Skills to load: zoho-crm-v30, zoho-crm-email-v3-5, fu30-followup-automation-v1-3
 
 ### Inbox Scan (Standalone)
 
 Triggers: /InboxScan, "check my inbox", "inbox scan", "scan inbox", "scan my email", "what emails need attention"
 
-Skills to load: zoho-crm-v28, zoho-crm-email-v3-5
+Skills to load: zoho-crm-v30, zoho-crm-email-v3-5
 
 ### Triage Only (No Action)
 
 Triggers: "what tasks are due", "show me my tasks", "task summary", "what do I have today"
 
-Skills to load: zoho-crm-v28
+Skills to load: zoho-crm-v30
 
 ---
 
@@ -74,16 +74,21 @@ PHASE 2: PARALLEL SUB-AGENT EVALUATION (~10s flat)
   ALL agents launched in a SINGLE message block (true parallelism)
   Each agent returns structured JSON ONLY (verbosity cap enforced)
 
-PHASE 3: PRE-PRESENTATION GATE + BUILD APPROVAL TABLE (~5s)
+PHASE 3: PRE-PRESENTATION GATE + DASHBOARD OUTPUT (~5s)
   Run mandatory spacing + style check on every draft returned by sub-agents
-  Then build unified approval table with clickable links, inline drafts, IR01 batch row
+  Transform sub-agent JSON results to dashboard data schema
+  Inject data into HTML dashboard template (from assets/task-dashboard.html)
+  Write populated dashboard to workspace folder
+  Present computer:// link to user
+  Fallback: chat-based approval table if dashboard generation fails
 
-PHASE 4: INBOX SCAN (runs in parallel while user reviews Phase 3 table)
-  Announce: "Scanning inbox while you review the table above..."
+PHASE 4: INBOX SCAN (runs in parallel while user reviews dashboard)
+  Announce: "Scanning inbox while you review the dashboard..."
   Run Gmail inbox search + Zoho cross-reference
-  Append inbox items to approval table
+  If inbox items found: regenerate dashboard with inbox items appended, or present as chat addendum
 
 PHASE 5: SEQUENTIAL EXECUTION
+  Accept decisions from dashboard (Send to Claude payload or JSON file) OR chat commands
   For each approved item: atomic task lifecycle
   send -> confirm -> close -> verify -> successor
   NEVER parallelize execution steps
@@ -128,7 +133,7 @@ If any meeting attendee email matches a contact from the CRM task list (fetched 
 ⚡ Deal overlap: Your 11:00 AM meeting with John Smith (Acme Corp) has an open task due today.
 ```
 
-This cross-reference happens AFTER Phase 1 completes. Display the flag inline with the approval table in Phase 3 if applicable.
+This cross-reference happens AFTER Phase 1 completes. Display the flag inline with the dashboard output in Phase 3 if applicable.
 
 ### Step 4: No-Meeting Shortcut
 
@@ -197,15 +202,25 @@ BEFORE launching any sub-agents:
 2. Separate IR01 tasks from substantive tasks
 3. Display: "IR01 tasks (batch): {N} | Substantive tasks (sub-agents): {M}"
 4. Launch sub-agents ONLY for the {M} substantive tasks
-5. Add IR01 tasks as a single batch row in the Phase 3 approval table
+5. Add IR01 tasks as a single batch row in the Phase 3 dashboard
 
-### IR01 Batch Row Format (for Phase 3 Table)
+### IR01 Dashboard Entry Format
 
-```
-**IR01 BATCH — {N} ISR Reminder Tasks** | NEEDS_REVIEW
-Tasks: [Subject 1], [Subject 2], + N more
-Proposed Action: Manual review — auto-generated ISR reminders. Close individually or reassign.
-No email draft. No successor auto-created.
+IR01 tasks appear as a single grouped entry in the dashboard with type "IR01_BATCH" and no email draft:
+```javascript
+{
+  id: 'ir01_batch',
+  type: 'IR01_BATCH',
+  dealName: 'IR01 BATCH — {N} ISR Reminder Tasks',
+  dealUrl: null,
+  contactName: 'Various',
+  contactEmail: '',
+  proposedAction: 'Manual review — auto-generated ISR reminders. Close individually or reassign.',
+  gmailContext: 'Tasks: [Subject 1], [Subject 2], + N more',
+  emailDraft: null,
+  successorDefault: { recommended: false, days: 0, type: 'IR01' },
+  ir01TaskIds: ['id1', 'id2', ...]
+}
 ```
 
 ---
@@ -277,7 +292,7 @@ one JSON object and nothing else. This is required to prevent context exhaustion
 
 ## Phase 3: Pre-Presentation Gate
 
-**MANDATORY: Run this gate on every email draft before building the approval table.**
+**MANDATORY: Run this gate on every email draft before building the dashboard.**
 
 For each `email_draft` returned by sub-agents, apply these checks in order:
 
@@ -323,12 +338,107 @@ Verify the draft ends with a question or specific call to action.
 
 ### Gate Output
 
-After running all 5 checks, proceed to building the approval table with the corrected drafts.
-No separate display is needed — the gate runs silently. If a draft required corrections, use the corrected version in the table.
+After running all 5 checks, proceed to dashboard generation with the corrected drafts.
 
 ---
 
-## Phase 3: Approval Table Format
+## Phase 3a: Dashboard Output (Default)
+
+After the pre-presentation gate, transform sub-agent results into an interactive HTML dashboard. This is the default output for Full Daily Task Review. The chat-based approval table (Phase 3b) is the fallback if dashboard generation fails.
+
+### Step 1: Transform Sub-Agent Results to Dashboard Schema
+
+For each sub-agent result, map to this JavaScript object:
+
+```javascript
+{
+  id: result.task_id,                    // Zoho task record ID
+  type: result.task_type,                // FU30, DR01, Follow-up, Renewal, etc.
+  dealName: result.subject,              // Task subject (includes deal context)
+  dealUrl: result.zoho_deal_url,         // Clickable Zoho deal link
+  taskUrl: result.zoho_task_url,         // Clickable Zoho task link
+  contactName: result.contact_name,
+  contactEmail: result.contact_email,
+  contactUrl: result.zoho_contact_url,   // Clickable Zoho contact link
+  accountName: result.company,
+  accountUrl: result.zoho_account_url,   // Clickable Zoho account link
+  dealStage: result.deal_stage,
+  dealAmount: result.deal_amount,
+  dueDate: result.due_date,
+  proposedAction: result.proposed_action,
+  actionNotes: result.action_notes || '',
+  gmailContext: 'Last contact: ' + result.gmail_last_contact_date + (result.gmail_thread_url ? '' : ' (no thread)'),
+  gmailThreadUrl: result.gmail_thread_url,
+  emailDraft: result.email_draft ? {
+    to: result.contact_email,
+    subject: result.email_subject,
+    body: result.email_draft
+  } : null,
+  successorDefault: {
+    recommended: result.successor_needed,
+    days: result.successor_needed ? daysBetween(today, result.successor_due) : 3,
+    type: result.task_type
+  }
+}
+```
+
+Include IR01 batch entry (see Phase 1b format) at the end if IR01 tasks exist.
+
+### Step 2: Read Dashboard Template
+
+Read the HTML template from `assets/task-dashboard.html` bundled with this skill.
+
+### Step 3: Inject Data into Template
+
+Find the line `const SAMPLE_DATA = [` in the template and replace the entire SAMPLE_DATA block with the live data. Insert a `window.TASK_DATA_INJECT` assignment before it:
+
+```javascript
+window.TASK_DATA_INJECT = [/* transformed task array */];
+```
+
+The dashboard's existing logic (`const TASK_DATA = window.TASK_DATA_INJECT || SAMPLE_DATA;`) picks up the injected data automatically.
+
+### Step 4: Write Dashboard to Workspace
+
+Write the populated HTML file to the user's workspace folder:
+
+```python
+# Write to workspace
+output_path = '/mnt/outputs/task-dashboard.html'  # Or the user's mounted folder
+```
+
+Use the skill's working directory for intermediate work, and save the final file to the workspace folder so the user can access it.
+
+### Step 5: Present Dashboard Link
+
+```
+Your task dashboard is ready with {N} tasks loaded.
+
+[Open Task Dashboard](computer:///path/to/task-dashboard.html)
+
+Review tasks in the dashboard, then either:
+• **Send to Claude** button in the dashboard to route decisions back here
+• **Save to Folder** to export decisions as JSON, then share the file
+• Or reply here with "approve all", "approve #1, #3", etc.
+```
+
+### Dashboard Features Available to User
+
+The dashboard provides three views (Cards, Compact, Kanban), inline email editing with character counts, batch approve/skip/reject with toggle, drag-and-drop in Kanban, dark mode, search and filter by type, auto-save every 30 seconds, and three export paths:
+
+1. **Send to Claude** — Opens a new Claude chat with the decisions payload encoded in the URL. The user copies the payload from that tab back to this conversation.
+2. **Save to Folder** — Saves a JSON file with all decisions to the user's filesystem.
+3. **Copy to Clipboard** — Copies the decisions JSON for pasting.
+
+### Fallback: Chat-Based Table
+
+If the dashboard template is missing or writing fails, fall back to the chat-based approval table (Phase 3b below).
+
+---
+
+## Phase 3b: Chat Approval Table (Fallback)
+
+Use this format only if dashboard generation fails.
 
 ### Hyperlink Enforcement (MANDATORY)
 
@@ -375,7 +485,7 @@ Reply with:
 
 ## Phase 4: Inbox Scan During Review
 
-Announce immediately after presenting Phase 3 table:
+Announce immediately after presenting dashboard or approval table:
 "Scanning your inbox while you review -- I'll add any action items below."
 
 ### Gmail Search Query
@@ -431,27 +541,65 @@ INBOX_FYI:
 
 ## Phase 5: Sequential Execution
 
+### Accepting Decisions
+
+Phase 5 accepts decisions from three sources:
+
+**Source 1: Dashboard Send to Claude** — User clicks "Send to Claude" in the dashboard, which opens a URL with encoded JSON payload. The user pastes or shares the payload. Parse the JSON to extract decisions per task:
+```json
+{
+  "decisions": {
+    "task_id": "approve|reject|skip",
+    ...
+  },
+  "editedSubjects": { "task_id": "new subject", ... },
+  "editedBodies": { "task_id": "new body", ... },
+  "rejectReasons": { "task_id": "reason", ... },
+  "successors": { "task_id": { "enabled": true, "days": 3 }, ... }
+}
+```
+
+**Source 2: Dashboard JSON file** — User saves decisions via "Save to Folder" and shares or references the JSON file. Same schema as above.
+
+**Source 3: Chat commands** — Existing behavior:
+- "approve all" — execute all proposed actions
+- "approve #1, #3" — execute specific items by index
+- "skip #2" — skip specific items
+- "edit #1 [changes]" — modify draft before sending
+
+### Execution Loop
+
 FOR EACH approved action (in order, one at a time):
-  1. Confirm action (draft already shown in Phase 3 table)
-  2. IF user requested any edits: show FULL REVISED DRAFT, wait for re-approval BEFORE sending
+  1. If dashboard source: check for edited subject/body, apply edits to draft
+  2. IF user requested edits (from any source): show FULL REVISED DRAFT, wait for re-approval BEFORE sending
   3. Send email via Pipedream (Tier 1, instruction singular), confirm sent
   4. Close task via Zoho CRM, confirm via re-fetch
-  5. Check successor enforcement (ALL open/ongoing deals need follow-up)
+  5. Check successor enforcement:
+     - If dashboard provided successor config: use it (enabled/days)
+     - Otherwise: default successor logic (ALL open/ongoing deals need follow-up)
   6. Create follow-up task (skip ONLY if engagement should genuinely end)
   THEN next task
 
 NEVER execute two items simultaneously.
 NEVER batch Zoho CRM + Pipedream/Zapier in same parallel block.
 NEVER skip confirmation between items.
-NEVER send a modified draft without first presenting the revised version for explicit user approval.
+NEVER send a modified draft without first presenting the revised version for user approval.
+
+### Handling Rejected Tasks
+
+Tasks marked "reject" in dashboard decisions: close the task in Zoho with the reject reason as the closing note. No email sent. Successor creation follows the successor config from the dashboard (if enabled) or default rules.
+
+### Handling Skipped Tasks
+
+Tasks marked "skip": no action taken. Task remains open in Zoho.
 
 ---
 
 ## Revised Draft Approval Rule
 
-When a user requests ANY edits to a proposed draft, the full revised draft MUST be presented for explicit user approval BEFORE sending.
+When a user requests ANY edits to a proposed draft (whether via dashboard inline editing or chat commands), the full revised draft MUST be presented for explicit user approval BEFORE sending.
 
-BEFORE sending any email where the user requested changes:
+BEFORE sending any email where changes were made:
   1. Apply the requested edits
   2. Present the COMPLETE revised draft:
 
@@ -468,7 +616,7 @@ Send this revised version? (yes to send, or request further changes)
   3. Wait for explicit approval
   4. ONLY THEN send via Pipedream
 
-This rule applies any time the user: adds a recipient, changes tone/content, adjusts subject, or requests any wording change.
+This rule applies any time the user: adds a recipient, changes tone/content, adjusts subject, or requests any wording change — whether from dashboard edits or chat edits.
 
 ---
 
@@ -486,7 +634,7 @@ NEVER reply only to the From address if other participants are in the thread.
 
 ## Per-Task-Type Evaluation Gates
 
-### DR01 Evaluation Gate (UPDATED IN V1.7)
+### DR01 Evaluation Gate
 
 1. Fetch deal Stage, Amount, Account_Name from Zoho
 2. **CHECK DEAL STAGE FIRST:**
@@ -531,6 +679,7 @@ Rule: ALL open/ongoing deals require a follow-up task after any action. Only ski
 - Deal is Closed (Won) — already fulfilled
 - Informational FU30 with no ask
 - Customer explicitly declined further contact
+- Dashboard successor toggle is explicitly disabled for that task
 
 ### Enforcement Workflow
 
@@ -539,7 +688,7 @@ BEFORE closing a task on an active deal:
   2. IF other open tasks exist: OK to close
   3. IF no other open tasks: MUST create successor before closing:
      - Subject: "Follow Up: {Contact_Name} - {Company}"
-     - Due_Date: 3 business days from today
+     - Due_Date: use dashboard successor days if provided, else 3 business days from today
      - Owner: Chris Graves (2570562000141711002)
      - What_Id: {Deal_Id}, $se_module: "Deals"
 
@@ -569,11 +718,11 @@ due_date = add_business_days(today, 3)
 
 | Skill | Version | Purpose |
 |-------|---------|---------|
-| zoho-crm-v28 | v28 | CRM operations, task lifecycle, cascade prevention, never-close-won, weborder check, Gmail source of truth, product_name field fix |
+| zoho-crm-v30 | v30 | CRM operations, task lifecycle, cascade prevention, never-close-won, weborder check, Gmail source of truth |
 | zoho-crm-email-v3-5 | v3.5 | Email drafting, Pipedream-first routing, draft presentation rules, tool UUID identification, full Chris Graves style guide |
 | fu30-followup-automation-v1-3 | v1.3 | FU30 enrichment, templates, 7-day lookahead, atomic lifecycle |
 | cisco-rep-locator-v1-1 | v1.1 | Cisco rep ID lookup for ISR deal assignment |
-| webex-bots-v1-6 | v1.6 | Webex messaging for Cisco rep outreach |
+| webex-bots-v1-7 | v1.7 | Webex messaging for Cisco rep outreach |
 | license-renewal-email-v1-1 | v1.1 | Renewal outreach for DA90 tasks with expiring licenses |
 
 ---
@@ -606,7 +755,7 @@ due_date = add_business_days(today, 3)
 - NEVER create duplicate tasks; always run deduplication logic first
 - NEVER send a modified draft without first presenting the revised version for user approval
 - NEVER reply to only the From address; extract all To + CC participants via gmail_read_thread
-- NEVER skip the Phase 3 pre-presentation gate — spacing and style must be validated before the table is shown
+- NEVER skip the Phase 3 pre-presentation gate — spacing and style must be validated before output
 
 ### Tool UUID Reference
 
@@ -625,6 +774,11 @@ due_date = add_business_days(today, 3)
 
 ---
 
+## Dashboard Asset
+
+The interactive HTML dashboard template is bundled at `assets/task-dashboard.html`. This is a single-file HTML application with embedded CSS and JavaScript. It requires no external dependencies and works in any modern browser.
+
+The dashboard reads data from `window.TASK_DATA_INJECT` (set by the skill during Phase 3a) and falls back to built-in sample data if no injection is present (useful for testing the template standalone).
 
 ---
 

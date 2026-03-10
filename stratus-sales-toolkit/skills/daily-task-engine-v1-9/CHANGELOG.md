@@ -1,5 +1,17 @@
 # Daily Task Engine Changelog
 
+### v1.9
+
+- **INTERACTIVE HTML DASHBOARD OUTPUT (DEFAULT)**: New Phase 3a replaces the chat-based approval table as the default output. Generates a standalone HTML dashboard file populated with live sub-agent evaluation data via `window.TASK_DATA_INJECT`. Dashboard features: Card/Compact/Kanban views, inline email editing with character counts, batch approve/skip/reject with toggle, drag-and-drop in Kanban, dark mode, search and filter by type/status, auto-save every 30 seconds, and three export paths (Send to Claude URL injection, Save to Folder JSON, Copy to Clipboard).
+- **DASHBOARD DATA SCHEMA**: Sub-agent JSON results mapped to dashboard-compatible objects with full Zoho CRM and Gmail URLs, email drafts, and smart successor defaults.
+- **SEND TO CLAUDE INTEGRATION**: Dashboard "Send to Claude" button encodes approved decisions as a URL payload with multi-tab overflow for large batches. Decisions route back to Phase 5 for sequential execution.
+- **THREE-SOURCE DECISION INPUT**: Phase 5 now accepts decisions from dashboard (Send to Claude payload or JSON file), or traditional chat commands (approve all, approve #1, etc.).
+- **DASHBOARD SUCCESSOR OVERRIDES**: User can toggle successor creation and adjust follow-up days per task in the dashboard. Phase 5 respects these overrides.
+- **CHAT TABLE AS FALLBACK**: Previous approval table format preserved as Phase 3b fallback if dashboard generation fails.
+- **COMPANION SKILLS UPDATED**: zoho-crm-v28 references updated to zoho-crm-v30, webex-bots-v1-6 updated to webex-bots-v1-7.
+- **BUNDLED ASSET**: Dashboard HTML template bundled at `assets/task-dashboard.html`.
+- All v1.8 features retained.
+
 ### v1.8
 
 - **EMBEDDED VOICE/STYLE GUIDE IN SUB-AGENT PROMPT**: Full Chris Graves style guide now embedded inline in the sub-agent prompt. Includes: friendly/confident tone, sentence variety, contractions (I'll, you're, that's, we've), qualifying language, banned phrases (em dashes, filler openers, AI phrases), tone anchors ("How does everything look?", "What has feedback been so far?", "For your convenience..."), and email structure. Previously was a single line; now a full block.
