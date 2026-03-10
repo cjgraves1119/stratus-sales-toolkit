@@ -1,3 +1,9 @@
+## v31 (2026-03-10)
+- **ADDRESS CARRY-FORWARD (Rule 48)**: Billing/shipping address fields from Account lookup MUST be included in Quote creation payload. No more create-then-patch. Hard stop if address missing.
+- **NET_TERMS MUST BE CONFIRMED (Rule 49)**: Net_Terms is now a required row in pre-creation validation table, confirmed before first API call. Never silently defaults to Net 15.
+- **Pre-creation validation table expanded**: Full address rows (billing + shipping) and Net_Terms added as explicit required fields with HARD STOP RULES block.
+- **NEVER DO entries added**: Two new prohibitions reinforcing address carry-forward and Net_Terms confirmation.
+
 # Zoho CRM Changelog
 
 ### v30 (Current)

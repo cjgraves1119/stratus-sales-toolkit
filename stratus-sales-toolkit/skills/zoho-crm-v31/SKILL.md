@@ -1,9 +1,9 @@
 ---
-name: zoho-crm-v30
+name: zoho-crm-v31
 description: "zoho crm with hot cache removed (live batch sku lookup only), master quote workflow for multi-variant quotes (1y+3y combined for did, then term-specific clones), send-quote-to-customer full pipeline workflow, ecomm discount prompt on create quote, gmail thread read as mandatory pre-step, live_sendtoesign sales_orders fix, delinquency gate for po conversion, 1% ecomm price rounding reduction, and ccw approval shortcut with deal id pass-through. triggers: create quote, send quote, send quote to customer, new deal, update deal, close task, task review, daily tasks, task clean up, help me complete todays tasks, close out my tasks, what tasks are due, review my tasks, submit to ccw, admin action, clone quote, cancel po, generate po and send. org id: org647122552."
 ---
 
-# Zoho CRM v30 (Hot Cache Removed + Master Quote Workflow)
+# Zoho CRM v31 (Hot Cache Removed + Master Quote Workflow)
 
 See CHANGELOG.md for what changed in each version.
 
@@ -1207,19 +1207,42 @@ Gmail Thread: {link if available}
 
 ## Pre-Creation Validation (MANDATORY)
 
-Before ANY record creation, display validation table:
+Before ANY record creation, display validation table. ALL rows below are REQUIRED — do not omit any:
+
 ```
 PRE-CREATION VALIDATION:
 | Field | Value | Status |
 |-------|-------|--------|
 | Deal_Name | Bison Equities - Secure Access | ✓ |
+| Account_Name | Bison Equities | ✓ |
+| Stage | Qualification | ✓ |
 | Lead_Source | Meraki ISR Referal | ✓ |
 | Reason | Meraki ISR recommended | ✓ |
 | Meraki_ISR | [Pending - need rep name] | ⚠ PROMPT |
-| Address | 123 Main St, Chicago IL | ✓ (via web search) |
+| Contact_Name | Jane Smith | ✓ |
+| Billing_Street | 123 Main St | ✓ (from Account) |
+| Billing_City | Chicago | ✓ (from Account) |
+| Billing_State | IL | ✓ (from Account) |
+| Billing_Code | 60601 | ✓ (from Account) |
+| Billing_Country | US | ✓ |
+| Shipping_Street | 123 Main St | ✓ (mirrors billing) |
+| Shipping_City | Chicago | ✓ (mirrors billing) |
+| Shipping_State | IL | ✓ (mirrors billing) |
+| Shipping_Code | 60601 | ✓ (mirrors billing) |
+| Shipping_Country | US | ✓ |
+| Net_Terms | Net 30 | ⚠ CONFIRM |
+| Valid_Till | 04/09/2026 | ✓ (today + 30) |
+| Cisco_Billing_Term | Prepaid Term | ✓ |
 ```
 
-**If ANY field shows ⚠ PROMPT, ask user before proceeding.**
+**HARD STOP RULES:**
+- If ANY address field is missing from the Account record → run ADDRESS LOOKUP SEQUENCE before proceeding
+- Net_Terms MUST be explicitly confirmed with user before quote creation — never silently default to Net 15
+- Billing address MUST be carried forward from Account lookup into the quote creation payload — never create quote without it
+- Shipping fields MUST mirror Billing fields unless user specifies otherwise
+- If ANY field shows ⚠ PROMPT, stop and ask user before proceeding
+
+**If ANY field shows ⚠ PROMPT or is blank, ask user before proceeding.**
 
 ## Lead Source Conditional Logic
 
@@ -1771,6 +1794,8 @@ After closing, always verify via re-fetch (`ZohoCRM_Get_Record` with Status chec
 45. **ECOMM 1% ROUNDING** - When applying ecomm prices from stratus-quoting-bot cache, apply 1% reduction: `adjusted_price = math.floor(ecomm_price * 0.99)`. This compensates for cache staleness vs live pricing
 46. **GMAIL THREAD READ BEFORE QUOTING** - When request references an email thread, sender, or subject, read the full Gmail thread BEFORE creating any quotes. Extract exact SKUs, quantities, terms, and contacts from the thread as source of truth
 47. **CCW SHORTCUT DEAL ID** - When triggering the CCW approval shortcut (Deal-Reg-Approval-v2-), always pass the Deal ID in the prompt message so it skips Zoho page extraction. Navigate to Quote page first before executing shortcut
+48. **ADDRESS CARRY-FORWARD (CRITICAL)** - Billing address fields retrieved during Account lookup MUST be included in the Quote creation payload. NEVER create a Quote without Billing_Street, Billing_City, Billing_State, Billing_Code, Billing_Country. Shipping fields must mirror Billing unless user says otherwise. If Account has no address, run ADDRESS LOOKUP SEQUENCE before creating the Quote. Do not create first and patch later.
+49. **NET_TERMS MUST BE CONFIRMED** - NEVER default Net_Terms silently to "Net 15". Always include Net_Terms as a row in the pre-creation validation table and confirm with user before the first API call. Net_Terms cannot be changed after PO conversion, so this must be resolved at quote creation time, not after.
 
 ## Minimal Field Sets
 
@@ -1945,6 +1970,8 @@ NEVER DO:
 ✗ Leave Net_Terms as Net 15 when Delinquency_Score is non-green (must switch to Cash)
 ✗ Use raw ecomm prices from cache without 1% rounding adjustment
 ✗ Skip Gmail thread read when request references an email conversation
+✗ Create a Quote without billing/shipping address fields in the payload — always carry address forward from Account lookup
+✗ Default Net_Terms to "Net 15" without confirming with user — always include Net_Terms in the pre-creation validation table and get explicit confirmation
 ```
 
 
