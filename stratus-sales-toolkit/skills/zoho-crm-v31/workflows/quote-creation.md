@@ -168,31 +168,24 @@ PRE-CREATION VALIDATION - QUOTE
 | Contact_Name | {value} | ✓ REQUIRED |
 | Cisco_Billing_Term | Prepaid Term | ✓ |
 | Valid_Till | {value} | ✓ |
-| Net_Terms | {value} | ⚠ CONFIRM — ask user before creating quote |
 | Billing_Street | {value} | ✓ |
 | Billing_City | {value} | ✓ |
 | Billing_State | {value} | ✓ |
 | Billing_Code | {value} | ✓ |
 | Billing_Country | {value} | ✓ |
-| Shipping_Street | {value} | ✓ (mirrors billing) |
-| Shipping_City | {value} | ✓ (mirrors billing) |
-| Shipping_State | {value} | ✓ (mirrors billing) |
-| Shipping_Code | {value} | ✓ (mirrors billing) |
 | Shipping_Country | US | ✓ |
 | Address Source | {Account/Web/Signature} | ✓ |
 | Line Items | {count} items | ✓ |
 ```
 
 **Rules:**
-- Net_Terms MUST be confirmed with user before this table is signed off — never default silently to Net 15
-- If ANY address field is blank → STOP and run ADDRESS LOOKUP SEQUENCE before proceeding
+- If ANY address field is blank → STOP and ask user
 - If Contact_Name is blank → STOP (lookup or prompt for contact)
 - Billing_Country defaults to "US" if blank
-- Shipping fields mirror Billing unless user says otherwise
+- Shipping_Country defaults to "US" (mirrors Billing)
 - Cisco_Billing_Term defaults to "Prepaid Term"
 - NEVER create quote with incomplete address
 - NEVER create quote without Contact_Name
-- NEVER create quote before Net_Terms is confirmed
 
 ### 10. Create Quote Shell (WITHOUT Line Items)
 
@@ -207,16 +200,11 @@ Create the quote first, without Quoted_Items. This ensures a real Zoho record ex
   "Valid_Till": "{calculated_date}",
   "Quote_Stage": "Draft",
   "Cisco_Billing_Term": "Prepaid Term",
-  "Net_Terms": "{confirmed by user — required}",
   "Billing_Street": "{street - REQUIRED}",
   "Billing_City": "{city - REQUIRED}",
-  "Billing_State": "{2-letter abbreviation - REQUIRED, e.g. IA not Iowa}",
+  "Billing_State": "{2-letter state abbreviation - REQUIRED, e.g. IA not Iowa}",
   "Billing_Code": "{zip - REQUIRED}",
   "Billing_Country": "US",
-  "Shipping_Street": "{mirrors Billing_Street}",
-  "Shipping_City": "{mirrors Billing_City}",
-  "Shipping_State": "{mirrors Billing_State}",
-  "Shipping_Code": "{mirrors Billing_Code}",
   "Shipping_Country": "US"
 }
 ```

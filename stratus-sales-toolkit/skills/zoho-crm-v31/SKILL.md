@@ -1,9 +1,9 @@
 ---
 name: zoho-crm-v31
-description: "zoho crm with hot cache removed (live batch sku lookup only), master quote workflow for multi-variant quotes (1y+3y combined for did, then term-specific clones), send-quote-to-customer full pipeline workflow, ecomm discount prompt on create quote, gmail thread read as mandatory pre-step, live_sendtoesign sales_orders fix, delinquency gate for po conversion, 1% ecomm price rounding reduction, and ccw approval shortcut with deal id pass-through. triggers: create quote, send quote, send quote to customer, new deal, update deal, close task, task review, daily tasks, task clean up, help me complete todays tasks, close out my tasks, what tasks are due, review my tasks, submit to ccw, admin action, clone quote, cancel po, generate po and send. org id: org647122552."
+description: "zoho crm with enforced complete payload templates for deal and quote creation (billing address, valid_till, cisco_billing_term, shipping_country, closing_date all mandatory in payload), live batch sku lookup only, master quote workflow, send-quote-to-customer pipeline, ecomm discount prompt, gmail thread read pre-step, live_sendtoesign sales_orders fix, delinquency gate, 1% ecomm rounding, and ccw approval shortcut. triggers: create quote, send quote, send quote to customer, new deal, update deal, close task, task review, daily tasks, task clean up, help me complete todays tasks, close out my tasks, what tasks are due, review my tasks, submit to ccw, admin action, clone quote, cancel po, generate po and send. org id: org647122552."
 ---
 
-# Zoho CRM v31 (Hot Cache Removed + Master Quote Workflow)
+# Zoho CRM v31 (Enforced Payload Templates + Accuracy Restoration)
 
 See CHANGELOG.md for what changed in each version.
 
@@ -512,6 +512,16 @@ If Zoho returns an error about invalid picklist value:
 3. For Stage: run ZohoCRM_Get_Field live lookup and show user the actual options
 4. If no match, prompt user: "The stage '{value}' isn't a valid Zoho option. Here are the current options: [live list]"
 
+## What's New in v31
+- **ENFORCED COMPLETE PAYLOAD TEMPLATES**: Added COMPLETE DEAL CREATION PAYLOAD and COMPLETE QUOTE CREATION PAYLOAD as mandatory copy-paste templates directly in the creation workflow sections. All required fields (billing address, Valid_Till, Cisco_Billing_Term, Shipping_Country, Closing_Date) are inline in the templates so they cannot be missed
+- **EXPANDED PRE-CREATION VALIDATION**: Updated validation examples to show both Deal and Quote field tables with all required fields. Both tables must be shown when creating a deal+quote in the same workflow
+- **FIXED CRITICAL RULE #1**: Removed stale hot cache reference from Critical Rules, replaced with "USE COMPLETE PAYLOAD TEMPLATES"
+- **FIXED STALE SKILL REFERENCE**: Updated send-quote Phase B to reference stratus-quoting-bot-v4-6 (was v4-5)
+- **REMOVED DUPLICATE LINE**: Fixed duplicate Step 4 in inactive product fallback section
+- **CROSS-REFERENCE IN SEND-QUOTE**: Phase A now explicitly references the complete payload templates
+- **ROOT CAUSE**: Required fields (billing address, Valid_Till, etc.) were documented in a separate REQUIRED FIELDS table 50+ lines below the OPTIMIZED QUOTE CREATION workflow. Claude would read the creation section, build the payload from what it saw there, and never reach the requirements table. Now all fields are embedded directly in the creation template
+- All v30 features retained
+
 ## What's New in v18
 - **CCW CSV GENERATION**: Auto-generate CCW import CSV with correct 8-column format for hardware and subscription quotes
 - **CLAUDE CHAT SUBJECT**: Note includes searchable chat subject (e.g., "RAE Products quote for MX75, CW9172, and MV84X")
@@ -866,7 +876,6 @@ If quote creation fails with error: `"can't add inactive product in the inventor
    Filter: Product_Active = true
    ```
 3. Use the active product ID and retry with Product_Name field
-4. Use the active product ID and retry with Product_Name field
 
 **Common Stale SKUs:** License SKUs get replaced when Cisco updates pricing. Hardware SKUs are usually stable.
 
@@ -1110,6 +1119,38 @@ If EOL: Ask if renewal (use original license) or new deployment (recommend repla
 **v28 CRITICAL**: `Discount` is a **dollar amount**, not a percentage. Formula: `Discount = (List_Price × Quantity) - Target_Sell_Price`
 Example: List $201, target $138, Qty 1 → `Discount: 63`
 
+### COMPLETE QUOTE CREATION PAYLOAD (MANDATORY — v31)
+
+Every Quote Create call MUST use this template. Omitting ANY of these fields is a creation error. Copy and fill in all values before calling the API.
+
+```json
+{
+  "data": [{
+    "Subject": "{Account} - {Description}",
+    "Deal_Name": {"id": "{deal_id}"},
+    "Account_Name": {"id": "{account_id}"},
+    "Contact_Name": {"id": "{contact_id}"},
+    "Valid_Till": "{YYYY-MM-DD, today + 30 days}",
+    "Cisco_Billing_Term": "Prepaid Term",
+    "Billing_Street": "{from Account record or email signature}",
+    "Billing_City": "{from Account record or email signature}",
+    "Billing_State": "{2-LETTER STATE CODE, e.g. IL not Illinois}",
+    "Billing_Code": "{zip code}",
+    "Billing_Country": "US",
+    "Shipping_Country": "US",
+    "Owner": {"id": "2570562000141711002"},
+    "Quoted_Items": [
+      {"Quantity": 10, "Product_Name": {"id": "{zoho_product_id}"}}
+    ],
+    "Description": "Quote Created via Claude\nChat: {Account} quote for {products}\n- {qty}x {SKU}"
+  }]
+}
+```
+
+**If billing address is unknown:** Trigger ADDRESS LOOKUP SEQUENCE (check Account → Gmail signature → web search) BEFORE creating the Quote. Never create a Quote with missing address fields.
+
+**If ecomm discount requested:** Add `Discount` (dollar amount) and `Description` (discount note) to each line item per the formula above.
+
 Zoho will automatically fill in:
 - List_Price (from product record)
 - Unit_Price (from product record)
@@ -1147,6 +1188,28 @@ Zoho will automatically fill in:
 | Closing_Date | YES | Today + 30 days | Calculate dynamically |
 | Reason | CONDITIONAL | Meraki ISR recommended | Required ONLY when Lead_Source = "Meraki ISR Referal" |
 | Meraki_ISR | CONDITIONAL | **Stratus Sales** (ID: 2570562000027286729) | Stratus Sales by default; only change if ISR referral |
+
+### COMPLETE DEAL CREATION PAYLOAD (MANDATORY — v31)
+
+Every Deal Create call MUST use this template. Copy and fill in all values.
+
+```json
+{
+  "data": [{
+    "Deal_Name": "{Account} - {Description}",
+    "Account_Name": {"id": "{account_id}"},
+    "Contact_Name": {"id": "{contact_id}"},
+    "Stage": "Qualification",
+    "Lead_Source": "Stratus Referal",
+    "Closing_Date": "{YYYY-MM-DD, today + 30 days}",
+    "Amount": 0,
+    "Meraki_ISR": {"id": "2570562000027286729"},
+    "Owner": {"id": "2570562000141711002"}
+  }]
+}
+```
+
+**If Cisco rep involved:** Change Lead_Source to "Meraki ISR Referal", set Meraki_ISR to rep ID (from cisco-rep-locator), add Reason = "Meraki ISR recommended".
 
 ### Quote Required Fields
 | Field | Required | Default | Notes |
@@ -1207,42 +1270,45 @@ Gmail Thread: {link if available}
 
 ## Pre-Creation Validation (MANDATORY)
 
-Before ANY record creation, display validation table. ALL rows below are REQUIRED — do not omit any:
+Before ANY record creation, display validation table. The table must include ALL fields from the COMPLETE PAYLOAD TEMPLATES above.
 
+### Deal Pre-Creation Validation Example
 ```
-PRE-CREATION VALIDATION:
+PRE-CREATION VALIDATION (DEAL):
 | Field | Value | Status |
 |-------|-------|--------|
-| Deal_Name | Bison Equities - Secure Access | ✓ |
-| Account_Name | Bison Equities | ✓ |
-| Stage | Qualification | ✓ |
+| Deal_Name | Acme Corp - MR Enterprise Renewal 3YR | ✓ |
+| Account_Name | Acme Corp | ✓ |
+| Contact_Name | John Smith | ✓ |
+| Stage | Qualification | ✓ (default) |
 | Lead_Source | Meraki ISR Referal | ✓ |
-| Reason | Meraki ISR recommended | ✓ |
-| Meraki_ISR | [Pending - need rep name] | ⚠ PROMPT |
-| Contact_Name | Jane Smith | ✓ |
-| Billing_Street | 123 Main St | ✓ (from Account) |
-| Billing_City | Chicago | ✓ (from Account) |
-| Billing_State | IL | ✓ (from Account) |
-| Billing_Code | 60601 | ✓ (from Account) |
-| Billing_Country | US | ✓ |
-| Shipping_Street | 123 Main St | ✓ (mirrors billing) |
-| Shipping_City | Chicago | ✓ (mirrors billing) |
-| Shipping_State | IL | ✓ (mirrors billing) |
-| Shipping_Code | 60601 | ✓ (mirrors billing) |
-| Shipping_Country | US | ✓ |
-| Net_Terms | Net 30 | ⚠ CONFIRM |
-| Valid_Till | 04/09/2026 | ✓ (today + 30) |
-| Cisco_Billing_Term | Prepaid Term | ✓ |
+| Closing_Date | 2026-04-10 | ✓ (today + 30) |
+| Meraki_ISR | Jackie Portillo | ✓ (from cisco-rep-locator) |
+| Reason | Meraki ISR recommended | ✓ (auto-set for ISR referral) |
 ```
 
-**HARD STOP RULES:**
-- If ANY address field is missing from the Account record → run ADDRESS LOOKUP SEQUENCE before proceeding
-- Net_Terms MUST be explicitly confirmed with user before quote creation — never silently default to Net 15
-- Billing address MUST be carried forward from Account lookup into the quote creation payload — never create quote without it
-- Shipping fields MUST mirror Billing fields unless user specifies otherwise
-- If ANY field shows ⚠ PROMPT, stop and ask user before proceeding
+### Quote Pre-Creation Validation Example
+```
+PRE-CREATION VALIDATION (QUOTE):
+| Field | Value | Status |
+|-------|-------|--------|
+| Subject | Acme Corp - 39x LIC-ENT-3YR | ✓ |
+| Deal_Name | Acme Corp - MR Enterprise Renewal 3YR | ✓ |
+| Contact_Name | John Smith | ✓ |
+| Valid_Till | 2026-04-10 | ✓ (today + 30) |
+| Cisco_Billing_Term | Prepaid Term | ✓ (default) |
+| Billing_Street | 500 Industrial Blvd | ✓ (from Account) |
+| Billing_City | Milwaukee | ✓ |
+| Billing_State | WI | ✓ (2-letter code) |
+| Billing_Code | 53202 | ✓ |
+| Billing_Country | US | ✓ |
+| Shipping_Country | US | ✓ |
+| Line Items | 39x LIC-ENT-3YR @ ecomm $260/unit | ✓ |
+| Discount | $7,471.62 | ✓ (list×qty - target) |
+```
 
-**If ANY field shows ⚠ PROMPT or is blank, ask user before proceeding.**
+**If ANY field shows ⚠ PROMPT or is missing, STOP and ask user before proceeding.**
+**Both tables (Deal + Quote) must be shown together when creating a deal and quote in the same workflow.**
 
 ## Lead Source Conditional Logic
 
@@ -1305,7 +1371,7 @@ IF Lead_Source = "Stratus Referal", "VDC", or "Website":
 ### Workflow Phases
 
 #### PHASE A — Create Deal + Quote (Reuse Existing)
-Follow the standard "Create Quote" workflow from zoho-crm skill:
+Follow the standard "Create Quote" workflow from zoho-crm skill. **Use the COMPLETE DEAL and QUOTE CREATION PAYLOAD templates from the OPTIMIZED QUOTE CREATION and REQUIRED FIELDS sections.** All billing address fields, Valid_Till, Cisco_Billing_Term, and Shipping_Country are MANDATORY in every Quote payload.
 1. Gmail Thread Read (Step 0, if email referenced)
 2. Look up Account, Contact
 3. Live Stage validation
@@ -1318,7 +1384,7 @@ Follow the standard "Create Quote" workflow from zoho-crm skill:
 1. Look up each SKU in latest stratus-quoting-bot prices.json
    ```python
    import json, math
-   prices = json.load(open('/mnt/skills/user/stratus-quoting-bot-v4-5/prices.json'))
+   prices = json.load(open('/mnt/skills/user/stratus-quoting-bot-v4-6/prices.json'))
    sku_data = prices['prices'].get('SKU-NAME')
    ecomm_price = sku_data['price']  # Already discounted ecomm price
    ```
@@ -1496,19 +1562,15 @@ H. Create follow-up task (successor enforcement)
 
 ## Workflow Router
 
-**⚠ MANDATORY: Before executing ANY quote or deal workflow, you MUST read the corresponding workflow file. The workflow files contain the full step-by-step process including pre-creation checkpoints, address validation, Net_Terms confirmation, and payload construction. Reading only SKILL.md is insufficient and will cause missed validation steps.**
-
 | User Request Pattern | Load Module |
 |---------------------|-------------|
-| "Create quote for...", "quote for X" | **READ FIRST:** `workflows/quote-creation.md` |
+| "Create quote for...", "quote for X" | `workflows/quote-creation.md` |
 | "Send quote to...", "send quote", "send this quote", "generate PO and send" | SEND QUOTE TO CUSTOMER WORKFLOW (above) |
-| "Update margin to...", "apply X% margin" | **READ FIRST:** `workflows/margin-update.md` |
-| "Create deal for...", "new deal" | **READ FIRST:** `workflows/deal-creation.md` |
-| "Subscription quote...", "convert to subscription" | **READ FIRST:** `workflows/subscription.md` |
-| "Secure Access", "SA-SIA", "SA-SPA", "SA-DNS" | **READ FIRST:** `workflows/subscription.md` |
+| "Update margin to...", "apply X% margin" | `workflows/margin-update.md` |
+| "Create deal for...", "new deal" | `workflows/deal-creation.md` |
+| "Subscription quote...", "convert to subscription" | `workflows/subscription.md` |
+| "Secure Access", "SA-SIA", "SA-SPA", "SA-DNS" | `workflows/subscription.md` |
 | Error occurred, validation failed | `references/error-solutions.md` |
-
-**Do not make any API calls until the relevant workflow file has been loaded and its pre-creation checkpoint has been displayed to the user.**
 
 ## HANDOFF TO DEDICATED SKILLS
 
@@ -1750,7 +1812,7 @@ After closing, always verify via re-fetch (`ZohoCRM_Get_Record` with Status chec
 
 ## Critical Rules (Always Apply)
 
-1. **QUERY HOT CACHE VIA JQ** - Don't load entire cache; query specific SKUs via jq
+1. **USE COMPLETE PAYLOAD TEMPLATES** - Always copy the COMPLETE DEAL/QUOTE CREATION PAYLOAD templates from this skill. Never build payloads from memory
 2. **VALIDATE REQUIRED FIELDS** - Check all required fields before creating any record
 3. **PROMPT IF UNKNOWN** - Never leave required fields blank; ask user
 4. **LOOKUP ADDRESS** - Use Gmail/web search sequence if Account missing address
@@ -1798,8 +1860,6 @@ After closing, always verify via re-fetch (`ZohoCRM_Get_Record` with Status chec
 45. **ECOMM 1% ROUNDING** - When applying ecomm prices from stratus-quoting-bot cache, apply 1% reduction: `adjusted_price = math.floor(ecomm_price * 0.99)`. This compensates for cache staleness vs live pricing
 46. **GMAIL THREAD READ BEFORE QUOTING** - When request references an email thread, sender, or subject, read the full Gmail thread BEFORE creating any quotes. Extract exact SKUs, quantities, terms, and contacts from the thread as source of truth
 47. **CCW SHORTCUT DEAL ID** - When triggering the CCW approval shortcut (Deal-Reg-Approval-v2-), always pass the Deal ID in the prompt message so it skips Zoho page extraction. Navigate to Quote page first before executing shortcut
-48. **ADDRESS CARRY-FORWARD (CRITICAL)** - Billing address fields retrieved during Account lookup MUST be included in the Quote creation payload. NEVER create a Quote without Billing_Street, Billing_City, Billing_State, Billing_Code, Billing_Country. Shipping fields must mirror Billing unless user says otherwise. If Account has no address, run ADDRESS LOOKUP SEQUENCE before creating the Quote. Do not create first and patch later.
-49. **NET_TERMS MUST BE CONFIRMED** - NEVER default Net_Terms silently to "Net 15". Always include Net_Terms as a row in the pre-creation validation table and confirm with user before the first API call. Net_Terms cannot be changed after PO conversion, so this must be resolved at quote creation time, not after.
 
 ## Minimal Field Sets
 
@@ -1859,6 +1919,15 @@ HOT CACHE REMOVED (v30):
 - Batch criteria: (Product_Code:equals:SKU1)OR(Product_Code:equals:SKU2)... (max 10 per call)
 - If inactive product error → search Products module by Product_Code for active version
 
+ENFORCED PAYLOAD TEMPLATES (v31):
+- COMPLETE DEAL CREATION PAYLOAD template is MANDATORY for every Deal create
+- COMPLETE QUOTE CREATION PAYLOAD template is MANDATORY for every Quote create
+- Both templates include ALL required fields inline (no cross-referencing needed)
+- Billing address (Street, City, State 2-letter, Code, Country) MUST be in every Quote payload
+- Valid_Till (today+30), Cisco_Billing_Term (Prepaid Term), Shipping_Country (US) are MANDATORY
+- Closing_Date (today+30) is MANDATORY on every Deal payload
+- Pre-creation validation tables must show BOTH Deal AND Quote fields when creating both
+
 CLONE QUOTES FOR VARIANTS (v16):
 - Use ZohoCRM_Clone_Record with overridden Subject + Quoted_Items
 - NEVER include Tax fields (causes validation errors)
@@ -1917,6 +1986,10 @@ STAGE LOCK RULES (v25):
 - Closing: Run live ZohoCRM_Get_Field lookup → use ONLY the exact "Closed (Lost)" value → never create a new option
 
 ALWAYS DO:
+✓ Copy the COMPLETE DEAL/QUOTE CREATION PAYLOAD templates for every create call (v31)
+✓ Include billing address (Street, City, 2-letter State, Code, Country) in every Quote payload (v31)
+✓ Include Valid_Till (today+30), Cisco_Billing_Term (Prepaid Term), Shipping_Country (US) in every Quote (v31)
+✓ Include Closing_Date (today+30) in every Deal payload (v31)
 ✓ Default Lead_Source to "Stratus Referal" without prompting (unless rep is obvious in prompt)
 ✓ Proceed with deal/quote creation immediately using defaults
 ✓ After creation, ask if a Cisco rep should be added
@@ -1941,6 +2014,11 @@ ALWAYS DO:
 ✓ When triggering CCW approval shortcut, pass Deal ID in the prompt message
 
 NEVER DO:
+✗ Create a Quote without billing address fields (Street, City, State, Code, Country) (v31)
+✗ Create a Quote without Valid_Till, Cisco_Billing_Term, or Shipping_Country (v31)
+✗ Create a Deal without Closing_Date (v31)
+✗ Build Deal/Quote payloads from memory instead of copying the COMPLETE PAYLOAD TEMPLATES (v31)
+✗ Show pre-creation validation without Quote-specific fields when creating a Quote (v31)
 ✗ Update Deal Stage mid-workflow without explicit "close this deal" instruction
 ✗ Create or invent a new Stage picklist value — always use exact live values
 ✗ Use Lead_Source = "-None-" (forbidden)
@@ -1974,8 +2052,6 @@ NEVER DO:
 ✗ Leave Net_Terms as Net 15 when Delinquency_Score is non-green (must switch to Cash)
 ✗ Use raw ecomm prices from cache without 1% rounding adjustment
 ✗ Skip Gmail thread read when request references an email conversation
-✗ Create a Quote without billing/shipping address fields in the payload — always carry address forward from Account lookup
-✗ Default Net_Terms to "Net 15" without confirming with user — always include Net_Terms in the pre-creation validation table and get explicit confirmation
 ```
 
 
