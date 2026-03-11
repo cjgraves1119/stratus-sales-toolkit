@@ -5,6 +5,19 @@ description: "zoho crm with enforced complete payload templates for deal and quo
 
 # Zoho CRM v31 (Enforced Payload Templates + Accuracy Restoration)
 
+## SKILL VERSION REFERENCES
+
+When this skill references another skill with "(latest)", always resolve to the latest version installed in `/mnt/skills/user/`. Use this pattern:
+
+```bash
+# Find latest version of any skill
+ls -d /mnt/skills/user/{skill-name}-v* | sort -V | tail -1
+```
+
+Example: "subscription-modification skill (latest)" → `ls -d /mnt/skills/user/subscription-modification-v* | sort -V | tail -1`
+
+This avoids hardcoded version numbers that break when skills are updated.
+
 See CHANGELOG.md for what changed in each version.
 
 ## GMAIL THREAD READ — MANDATORY PRE-STEP (NEW IN V29)
@@ -93,7 +106,7 @@ If a deal looks like it shipped or was fulfilled (customer received equipment, l
 4. IF NO PO exists → Check if order was placed as a weborder:
    a. Search Gmail for weborder confirmation (customer email, order number)
    b. Search Sales_Orders for weborder number if known
-   c. If weborder found → Use weborder-to-deal-automation-v1-1 skill to:
+   c. If weborder found → Use weborder-to-deal-automation skill (latest) to:
       - Associate the weborder PO to the existing deal
       - Update Account_Name if mismatched
       - This association triggers the auto-close workflow
@@ -102,7 +115,7 @@ If a deal looks like it shipped or was fulfilled (customer received equipment, l
 
 ### Weborder Association Workflow
 
-When routing to weborder-to-deal-automation-v1-1:
+When routing to weborder-to-deal-automation skill (latest):
 - The skill handles PO creation, deal linking, and account matching
 - Do NOT change the deal Stage manually before or after
 - Do NOT change Lead_Source unless instructed
@@ -220,12 +233,12 @@ def add_business_days(start_date, days):
 
 ### Evaluation Gate Integration
 
-Task closure now requires passing through the per-task-type evaluation gate defined in daily-task-engine-v1-8. The gate determines the correct action for each task type BEFORE any status change.
+Task closure now requires passing through the per-task-type evaluation gate defined in daily-task-engine skill (latest). The gate determines the correct action for each task type BEFORE any status change.
 
 ```
 TASK CLOSURE SEQUENCE:
 1. Identify task type from Subject pattern
-2. Run evaluation gate (per daily-task-engine-v1-8)
+2. Run evaluation gate (per daily-task-engine skill (latest))
 3. If gate says "close": run pre-close deal validation
 4. If active deal: check/create successor task
 5. Close task
@@ -431,7 +444,7 @@ If user asks Claude directly to submit a deal to CCW:
 **Closing a Deal as Won (NEVER manual, ALWAYS automatic):**
 1. Deals close won automatically when a completed PO (Sales_Order) is linked
 2. If deal should be Closed Won but isn't, check for missing weborder association
-3. Use weborder-to-deal-automation-v1-1 to properly link PO → triggers auto-close
+3. Use weborder-to-deal-automation skill (latest) to properly link PO → triggers auto-close
 4. NEVER use ZohoCRM_Update_Record to set Stage = "Closed Won"
 
 ### Valid Lead Sources (USE EXACTLY AS SHOWN)
@@ -1383,8 +1396,8 @@ Follow the standard "Create Quote" workflow from zoho-crm skill. **Use the COMPL
 #### PHASE B — Apply Ecomm Pricing (Default for Send Quote)
 1. Look up each SKU in latest stratus-quoting-bot prices.json
    ```python
-   import json, math
-   prices = json.load(open('/mnt/skills/user/stratus-quoting-bot-v4-6/prices.json'))
+   import json, math, glob
+   prices = json.load(open(sorted(glob.glob('/mnt/skills/user/stratus-quoting-bot-v*/prices.json'))[-1]))
    sku_data = prices['prices'].get('SKU-NAME')
    ecomm_price = sku_data['price']  # Already discounted ecomm price
    ```
@@ -1574,17 +1587,17 @@ H. Create follow-up task (successor enforcement)
 
 ## HANDOFF TO DEDICATED SKILLS
 
-### Subscription Modification Files → USE subscription-modification-v2-4+
+### Subscription Modification Files → USE subscription-modification skill (latest)
 
 **When user uploads Cisco subscription files or says trigger phrases, STOP and use the dedicated skill instead.**
 
 | Trigger | Action |
 |---------|--------|
-| Cisco subscription quote file uploaded (.xls/.xlsx) | → **USE subscription-modification-v2-4+** |
-| TD Synnex CPO file uploaded | → **USE subscription-modification-v2-4+** |
-| "sub mod", "sub add-on", "subscription modification" | → **USE subscription-modification-v2-4+** |
-| "true forward", "TF quote" | → **USE subscription-modification-v2-4+** |
-| "CPO quote", "process this subscription" | → **USE subscription-modification-v2-4+** |
+| Cisco subscription quote file uploaded (.xls/.xlsx) | → **USE subscription-modification skill (latest)** |
+| TD Synnex CPO file uploaded | → **USE subscription-modification skill (latest)** |
+| "sub mod", "sub add-on", "subscription modification" | → **USE subscription-modification skill (latest)** |
+| "true forward", "TF quote" | → **USE subscription-modification skill (latest)** |
+| "CPO quote", "process this subscription" | → **USE subscription-modification skill (latest)** |
 
 ## CCW CSV GENERATION (NEW IN V18)
 
@@ -1846,13 +1859,13 @@ After closing, always verify via re-fetch (`ZohoCRM_Get_Record` with Status chec
 31. **APPROVAL BEFORE CLOSE** - Present auto-closable tasks for user approval before closing. Never auto-close silently
 32. **PRE-CLOSE DEAL CHECK** - Before closing any deal-linked task, fetch the deal and check its stage. Active deals require successor task enforcement
 33. **SUCCESSOR TASK ENFORCEMENT** - Never close a task on an active deal without confirming or creating a successor open task
-34. **EVALUATION GATE REQUIRED** - Every task must pass its type-specific evaluation gate (per daily-task-engine-v1-8) before any status change
+34. **EVALUATION GATE REQUIRED** - Every task must pass its type-specific evaluation gate (per daily-task-engine skill (latest)) before any status change
 35. **BANNED PICKLIST VALUES** - "Closed Lost" (no parens), "Referral" (double R), "Closed-Won" (hyphen) are banned. Live validate before writing
 36. **NEVER MANUALLY CLOSE WON** - Deals auto-close when completed PO is attached. If deal appears fulfilled but not Closed Won, check for weborder and use weborder-to-deal-automation skill
 37. **GMAIL BEFORE ACTIONS** - Always search Gmail for actual last contact with customer before proposing actions on deal-linked tasks. Zoho Last_Activity_Time is not reliable for customer engagement
 38. **SUCCESSOR AFTER EVERY ACTION** - ALL open/ongoing deals require a follow-up task after any action. Only skip if engagement should genuinely end (Closed Lost, informational FU30 with no ask)
 39. **PIPEDREAM vs ZAPIER** - Pipedream (UUID 4804cd9a) uses `instruction` (singular), zero credits, Tier 1. Zapier (UUID 91a221c4) uses `instructions` (plural), burns credits, Tier 4. Never confuse
-40. **WEBORDER CHECK** - When deal shows shipped/fulfilled but not Closed Won, search for weborder PO and route through weborder-to-deal-automation-v1-1
+40. **WEBORDER CHECK** - When deal shows shipped/fulfilled but not Closed Won, search for weborder PO and route through weborder-to-deal-automation skill (latest)
 41. **PRODUCT_NAME NOT PRODUCT** - Always use `Product_Name: {"id": "..."}` for line items, NEVER `product: {"id": "..."}`. The `product` field triggers Zoho inventory active check and fails on products with negative stock (even when Product_Active = true). `Product_Name` bypasses this check
 42. **DISCOUNT IS DOLLAR AMOUNT** - The `Discount` field on Quoted_Items accepts dollar amounts, not percentages. Formula: `Discount = (List_Price × Quantity) - Target_Sell_Price`. Example: List $201, target $138, Qty 1 → `Discount: 63`
 43. **LIVE_SENDTOESIGN ON SALES_ORDERS** - LIVE_SendToEsign must target the Sales_Orders module (PO record ID), never the Quotes module. Running on Quotes returns __NotFound. Search Sales_Orders by Deal_Name to get PO ID
