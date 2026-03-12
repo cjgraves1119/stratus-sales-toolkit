@@ -1,9 +1,9 @@
 ---
-name: zoho-crm-v31
-description: "zoho crm with enforced complete payload templates for deal and quote creation (billing address, valid_till, cisco_billing_term, shipping_country, closing_date all mandatory in payload), live batch sku lookup only, master quote workflow, send-quote-to-customer pipeline, ecomm discount prompt, gmail thread read pre-step, live_sendtoesign sales_orders fix, delinquency gate, 1% ecomm rounding, and ccw approval shortcut. triggers: create quote, send quote, send quote to customer, new deal, update deal, close task, task review, daily tasks, task clean up, help me complete todays tasks, close out my tasks, what tasks are due, review my tasks, submit to ccw, admin action, clone quote, cancel po, generate po and send. org id: org647122552."
+name: zoho-crm-v32
+description: "zoho crm with mandatory follow-up task on every new deal (quote creation path), enforced complete payload templates for deal and quote creation (billing address, valid_till, cisco_billing_term, shipping_country, closing_date all mandatory in payload), live batch sku lookup only, master quote workflow, send-quote-to-customer pipeline, ecomm discount prompt, gmail thread read pre-step, live_sendtoesign sales_orders fix, delinquency gate, 1% ecomm rounding, and ccw approval shortcut. triggers: create quote, send quote, send quote to customer, new deal, update deal, close task, task review, daily tasks, task clean up, help me complete todays tasks, close out my tasks, what tasks are due, review my tasks, submit to ccw, admin action, clone quote, cancel po, generate po and send. org id: org647122552."
 ---
 
-# Zoho CRM v31 (Enforced Payload Templates + Accuracy Restoration)
+# Zoho CRM v32 (Mandatory Follow-Up Task on Quote Creation)
 
 ## SKILL VERSION REFERENCES
 
@@ -524,6 +524,15 @@ If Zoho returns an error about invalid picklist value:
 2. Check the auto-correction map
 3. For Stage: run ZohoCRM_Get_Field live lookup and show user the actual options
 4. If no match, prompt user: "The stage '{value}' isn't a valid Zoho option. Here are the current options: [live list]"
+
+## What's New in v32
+- **MANDATORY FOLLOW-UP TASK ON QUOTE CREATION**: New standalone section "FOLLOW-UP TASK ON NEW DEALS" placed directly in the quote creation workflow path. Every new Deal created via the standard quote workflow now requires a follow-up task as the final step before reporting completion. Previously, this rule existed in the PRE-CLOSE DEAL VALIDATION section (v27) but was only read during task closure, not quote creation
+- **ALWAYS DO updated**: Added "Create follow-up task on EVERY new Deal created via standard quote workflow, not just send-quote pipeline"
+- **NEVER DO updated**: Added "Complete a 'Create Quote' workflow on a new deal without creating a follow-up task"
+- **COMPLETION SUMMARY TEMPLATE**: Required output format now includes the follow-up task as a mandatory line item alongside Deal + Quote + Notes
+- **DECISION TABLE**: Covers all scenarios (new deal = always, existing deal = check first, send-quote = Phase H handles it)
+- **ROOT CAUSE DOCUMENTED**: Section explains why it exists (v27 rule was in wrong location) to prevent future regression
+- All v31 features retained
 
 ## What's New in v31
 - **ENFORCED COMPLETE PAYLOAD TEMPLATES**: Added COMPLETE DEAL CREATION PAYLOAD and COMPLETE QUOTE CREATION PAYLOAD as mandatory copy-paste templates directly in the creation workflow sections. All required fields (billing address, Valid_Till, Cisco_Billing_Term, Shipping_Country, Closing_Date) are inline in the templates so they cannot be missed
@@ -1048,6 +1057,73 @@ Products:
 - Fake UUIDs or placeholders in the URL field (use `[pending]` instead)
 
 **Purpose:** Easy traceability back to the conversation where quote was created. Chat Subject is searchable in Claude's sidebar. URL provides direct link when available.
+
+## FOLLOW-UP TASK ON NEW DEALS (MANDATORY — v32)
+
+### Rule
+
+Every new Deal created through the standard quote workflow MUST have a follow-up task created as the FINAL step, before reporting completion to the user. This applies to ALL quote creation paths (standard create, screenshot OCR, email-based). The only exception is the "Send Quote to Customer" pipeline, which has its own Phase H task creation.
+
+### When to Create
+
+| Scenario | Create Task? |
+|----------|-------------|
+| New Deal + Quote created (standard workflow) | YES (always, no check needed) |
+| Quote added to existing deal with NO open tasks | YES |
+| Quote added to existing deal WITH open tasks | NO (successor already exists) |
+| Send Quote to Customer pipeline | NO (Phase H handles this) |
+
+### Task Payload
+
+```json
+{
+  "data": [{
+    "Subject": "Follow Up: {Contact_Name} - {Company}",
+    "Due_Date": "{today + 3 business days, skip weekends}",
+    "Status": "Not Started",
+    "Priority": "Normal",
+    "Owner": {"id": "2570562000141711002"},
+    "What_Id": "{Deal_Id}",
+    "$se_module": "Deals",
+    "Who_Id": "{Contact_Id}",
+    "Description": "Successor task created after quote creation on {today}. Quote: {Quote_Subject}. Deal is active in {Stage} stage."
+  }]
+}
+```
+
+### Workflow Integration
+
+After Deal Note + Quote Note are created, BEFORE reporting completion:
+
+```
+IF new deal was created in this workflow:
+  → Create follow-up task immediately (no open-task check needed, deal is brand new)
+
+IF quote added to existing deal:
+  → Search Tasks: (What_Id:equals:{Deal_Id}) AND (Status:not_equals:Completed)
+  → IF open tasks found → Skip (successor exists)
+  → IF no open tasks → Create follow-up task
+
+THEN include task link in completion summary
+```
+
+### Completion Summary Template (REQUIRED OUTPUT)
+
+Every quote creation workflow must end with this format. The follow-up task is a required line item:
+
+```
+✅ Contact: {Name} → [Zoho link]
+✅ Deal: {Deal_Name} → [Zoho link]
+✅ Quote: {Quote_Subject} → [Zoho link]
+✅ Deal Note + Quote Note added
+✅ Follow-Up Task: Follow Up: {Contact} - {Company} (Due: MM/DD) → [Zoho link]
+
+What's next? Submit to CCW, apply ecomm pricing, send to customer, or anything else?
+```
+
+### Why This Section Exists (v32 Context)
+
+The v27 successor enforcement rule states "ALL open/ongoing deals require a follow-up task after any action (task closure, email send, or quote creation)." However, that instruction was nested inside the PRE-CLOSE DEAL VALIDATION section, which only triggers during task closure. This standalone section ensures the rule is visible and enforced during the standard quote creation path.
 
 ## PRODUCT ID LOOKUP (v30 — LIVE BATCH ONLY, NO HOT CACHE)
 
@@ -1941,6 +2017,13 @@ ENFORCED PAYLOAD TEMPLATES (v31):
 - Closing_Date (today+30) is MANDATORY on every Deal payload
 - Pre-creation validation tables must show BOTH Deal AND Quote fields when creating both
 
+MANDATORY FOLLOW-UP TASK ON QUOTE CREATION (v32):
+- Every new Deal created via standard quote workflow MUST have a follow-up task as the FINAL step
+- Task: "Follow Up: {Contact} - {Company}", Due = today + 3 business days, linked to Deal
+- Completion summary MUST include the task link as a required output
+- Only exception: Send Quote to Customer pipeline (Phase H handles task creation)
+- If adding quote to existing deal: check for open tasks first, only create if none exist
+
 CLONE QUOTES FOR VARIANTS (v16):
 - Use ZohoCRM_Clone_Record with overridden Subject + Quoted_Items
 - NEVER include Tax fields (causes validation errors)
@@ -2018,6 +2101,7 @@ ALWAYS DO:
 ✓ Verify task closure via re-fetch after every status update
 ✓ Present auto-closable tasks for user approval before closing
 ✓ Create follow-up tasks when email asked for next steps/decision
+✓ Create follow-up task on EVERY new Deal created via standard quote workflow, not just send-quote pipeline (v32)
 ✓ Separate Zoho and Zapier calls into different batches
 ✓ Run live picklist lookup before setting "Closed (Lost)" stage
 ✓ Run LIVE_SendToEsign on Sales_Orders module (PO record ID), never on Quotes
@@ -2065,6 +2149,7 @@ NEVER DO:
 ✗ Leave Net_Terms as Net 15 when Delinquency_Score is non-green (must switch to Cash)
 ✗ Use raw ecomm prices from cache without 1% rounding adjustment
 ✗ Skip Gmail thread read when request references an email conversation
+✗ Complete a "Create Quote" workflow on a new deal without creating a follow-up task (v32)
 ```
 
 
