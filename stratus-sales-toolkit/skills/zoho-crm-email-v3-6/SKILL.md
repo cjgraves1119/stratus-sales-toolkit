@@ -1,11 +1,11 @@
 ---
-name: zoho-crm-email-v3-5
-description: "pipedream-first email skill with 4-tier routing, draft presentation rules (no signature in preview), pipedream message ID sourcing, email opt-out scope clarification, tool uuid identification table, and strengthened spacing enforcement. triggers: send email, draft email, reply to email, follow up email, batch emails, email customer, send quote email, email about deal, compose email, write email."
+name: zoho-crm-email-v3-6
+description: "pipedream-first email skill with 4-tier routing, draft presentation rules (no signature in preview), pipedream message id sourcing, email opt-out scope clarification, tool uuid identification table, strengthened spacing enforcement, and dynamic companion skill version resolution. triggers: send email, draft email, reply to email, follow up email, batch emails, email customer, send quote email, email about deal, compose email, write email."
 ---
 
-# Zoho CRM Email v3.5
+# Zoho CRM Email v3.6
 
-Pipedream-first email routing with **4-tier failover**, **draft presentation rules**, **tool UUID identification**, and **strengthened spacing enforcement**. Pipedream gmail-send-email is the primary send path for ALL email types across ALL environments.
+Pipedream-first email routing with **4-tier failover**, **draft presentation rules**, **tool UUID identification**, **strengthened spacing enforcement**, and **dynamic companion skill versioning** so companion skill references never go stale. Pipedream gmail-send-email is the primary send path for ALL email types across ALL environments.
 
 ---
 
@@ -655,7 +655,7 @@ Sales & Logistics | Project Consulting | IT Management | Install & Config | Purc
 
 ### Rule: Never Batch Zoho + External Send in Parallel
 
-Zoho CRM MCP calls and external send calls (Pipedream, Zapier) must NEVER execute in the same parallel block.
+Zoho CRM MCP calls and external send calls (Pipedream, Zapier) must NEVER execute in the same parallel block. These are different external services — always send the email first, then update CRM records.
 
 ### Rule: Email Must Confirm Before CRM Updates
 
@@ -728,6 +728,39 @@ Normal behavior. Resend instruction with "Yes, send the email now." prepended.
 
 ---
 
+## Dynamic Companion Skill Version Resolution
+
+Companion skill version numbers are resolved dynamically at load time so this skill never references a stale version. This eliminates a class of bugs where a companion skill is updated but this skill's references are not.
+
+### Resolution Pattern
+
+When this skill needs to load a companion skill, use the glob → parse → sort → load-highest pattern:
+
+```bash
+# Step 1: Glob the plugin path for the prefix
+ls /mnt/.local-plugins/cache/stratus-sales-toolkit/stratus-sales-toolkit/*/skills/{prefix}*/
+
+# Step 2: Parse version numbers from matching folder names
+# Example: zoho-crm-v30, zoho-crm-v31, zoho-crm-v32 -> select zoho-crm-v32
+
+# Step 3: If plugin path returns no results, fall back to local skills
+ls /mnt/.skills/skills/{prefix}*/
+
+# Step 4: Load SKILL.md from the highest-versioned folder found
+```
+
+### Version Examples
+
+| Prefix | Matching Folders | Selected |
+|--------|-----------------|----------|
+| `zoho-crm-v` | zoho-crm-v30, zoho-crm-v31, zoho-crm-v32 | zoho-crm-v32 |
+| `fu30-followup-automation-v` | fu30-followup-automation-v1-3, fu30-followup-automation-v1-4 | fu30-followup-automation-v1-4 |
+| `license-renewal-email-v` | license-renewal-email-v1-1 | license-renewal-email-v1-1 |
+
+Version numbers embedded in folder names follow hyphenated format (e.g., `v1-3` = v1.3, `v32` = v32). Sort lexicographically on the numeric segments.
+
+---
+
 ## Quick Reference Checklist
 
 ```
@@ -765,6 +798,7 @@ x Use em dashes
 x Batch Zoho CRM + Pipedream/Zapier calls in same parallel block
 x Close a CRM task before confirming email was sent
 x Present draft with two paragraphs touching without a blank line between them
+x Hardcode companion skill version numbers (use dynamic resolution pattern above)
 ```
 
 ---
@@ -781,14 +815,14 @@ x Present draft with two paragraphs touching without a blank line between them
 - search_gmail_messages (find thread)
 - read_gmail_thread (extract context, subject, message ID, recipients)
 
-**Companion Skills:**
-- zoho-crm-v28 (CRM operations, task lifecycle, cascade prevention, never-close-won)
-- license-renewal-email-v1-1 (renewal-specific workflows)
-- fu30-followup-automation-v1-3 (30-day follow-ups with atomic lifecycle, Pipedream-first)
+**Companion Skills (resolved dynamically — never hardcode version numbers):**
+
+| Prefix | Purpose |
+|--------|---------|
+| `zoho-crm-v` | CRM operations, task lifecycle, cascade prevention, never-close-won |
+| `license-renewal-email-v` | Renewal-specific workflows |
+| `fu30-followup-automation-v` | 30-day follow-ups with atomic lifecycle, Pipedream-first |
+
+Use the Dynamic Companion Skill Version Resolution pattern above to load the highest available version of each companion skill at runtime.
 
 ---
-
-
----
-
-See CHANGELOG.md for version history.

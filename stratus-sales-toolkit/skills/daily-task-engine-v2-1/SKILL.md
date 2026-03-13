@@ -1,11 +1,11 @@
 ---
-name: daily-task-engine-v2-0
-description: "6-phase daily task engine with token-optimized architecture, pre-built dashboard injector script, file-piped sub-agent results, deferred companion skill loading, interactive html dashboard output, google calendar briefing, parallel sub-agent evaluation, batch approval tables, inbox scan, gmail-first context, successor enforcement, hyperlink enforcement, and centralized voice guide. dashboard features: card/compact/kanban views, inline email editing, drag-and-drop, dark mode, send-to-claude url injection, auto-save, search/filter, batch approve/skip/reject with toggle. triggers: daily tasks, review my tasks, task review, task clean up, help me complete todays tasks, close out my tasks, close tasks, what tasks are due, send fu30 emails, fu30s, 30-day check-ins, run my tasks, morning tasks, task cleanup, finish my tasks, knock out my tasks, lets do tasks, whats on my plate, clear my task list, inbox scan, check my inbox, scan my email."
+name: daily-task-engine-v2-1
+description: "6-phase daily task engine with token-optimized architecture, pre-built dashboard injector script, file-piped sub-agent results, deferred companion skill loading, dynamic companion skill versioning, interactive html dashboard output, google calendar briefing, parallel sub-agent evaluation, orphaned deal check, batch approval tables, inbox scan, gmail-first context, successor enforcement, hyperlink enforcement, and centralized voice guide. dashboard features: card/compact/kanban views, inline email editing, drag-and-drop, dark mode, send-to-claude url injection, auto-save, search/filter, batch approve/skip/reject with toggle. triggers: daily tasks, review my tasks, task review, task clean up, help me complete todays tasks, close out my tasks, close tasks, what tasks are due, send fu30 emails, fu30s, 30-day check-ins, run my tasks, morning tasks, task cleanup, finish my tasks, knock out my tasks, lets do tasks, whats on my plate, clear my task list, inbox scan, check my inbox, scan my email."
 ---
 
-# Daily Task Engine v2.0 (Token-Optimized Architecture)
+# Daily Task Engine v2.1 (Dynamic Versioning + Orphaned Deal Check)
 
-Trigger router with **token-optimized architecture**, **pre-built dashboard injector**, **file-piped sub-agent results**, **deferred companion skill loading**, **interactive HTML dashboard output (default)**, **parallel sub-agent evaluation**, **inline email draft previews**, **clickable Zoho CRM and Gmail links**, **per-task-type evaluation gates**, **batch approval tables**, **gmail-first context evaluation**, **strengthened successor enforcement**, **inbox scan phase**, **revised draft approval rule**, **reply-all thread enforcement**, and **embedded Chris Graves voice/style guide with mandatory paragraph spacing**.
+Trigger router with **token-optimized architecture**, **pre-built dashboard injector**, **file-piped sub-agent results**, **deferred companion skill loading**, **dynamic companion skill versioning (no hardcoded version numbers)**, **interactive HTML dashboard output (default)**, **parallel sub-agent evaluation**, **orphaned deal check (Phase 1c)**, **inline email draft previews**, **clickable Zoho CRM and Gmail links**, **per-task-type evaluation gates**, **batch approval tables**, **gmail-first context evaluation**, **strengthened successor enforcement**, **inbox scan phase**, **revised draft approval rule**, **reply-all thread enforcement**, and **embedded Chris Graves voice/style guide with mandatory paragraph spacing**.
 
 ---
 
@@ -23,37 +23,65 @@ What it does:
 1. Phase 0: Google Calendar morning briefing — show today's meetings, attendees, and prep notes
 2. Phase 1: Pull all open tasks owned by Chris Graves, due today or overdue (canonical query)
 3. Phase 1b: IR01 pre-filter — batch-classify IR01 tasks before sub-agent launch
-4. Phase 2: Launch one sub-agent per non-IR01 task simultaneously (Task tool, single message block)
-5. Phase 3: Pre-presentation gate (spacing + style check) → transform data → write interactive HTML dashboard
-6. Phase 4: Run Inbox Scan in parallel while user reviews dashboard
-7. Phase 5: Execute approved actions sequentially (atomic task lifecycle)
+4. Phase 1c: Orphaned deal check — find active deals with no open task linked (missed successors)
+5. Phase 2: Launch one sub-agent per non-IR01 task simultaneously (Task tool, single message block)
+6. Phase 3: Pre-presentation gate (spacing + style check) → transform data → write interactive HTML dashboard
+7. Phase 4: Run Inbox Scan in parallel while user reviews dashboard
+8. Phase 5: Execute approved actions sequentially (atomic task lifecycle)
 
 Skills to load at trigger: NONE (companion skills deferred to Phase 5 to save ~20K context during evaluation phases)
-Skills loaded just-in-time at Phase 5: zoho-crm-v30, zoho-crm-email-v3-5
+Skills loaded just-in-time at Phase 5: resolved dynamically at runtime (see Dynamic Companion Skill Version Resolution)
 
 ### Task Cleanup (Close Only)
 
 Triggers: /CloseTasks, "close out my tasks", "close tasks", "task clean up", "task cleanup", "clear my task list", "finish my tasks"
 
-Skills loaded just-in-time at execution: zoho-crm-v30
+Skills loaded just-in-time at execution: zoho-crm (latest version — resolved dynamically)
 
 ### 30-Day Follow-Up Emails
 
 Triggers: /FU30s, "send fu30 emails", "fu30s", "30-day check-ins", "post-sale check-ins", "run fu30s", "customer check-ins"
 
-Skills loaded just-in-time at execution: zoho-crm-v30, zoho-crm-email-v3-5, fu30-followup-automation-v1-3
+Skills loaded just-in-time at execution: zoho-crm, zoho-crm-email, fu30-followup-automation (all latest — resolved dynamically)
 
 ### Inbox Scan (Standalone)
 
 Triggers: /InboxScan, "check my inbox", "inbox scan", "scan inbox", "scan my email", "what emails need attention"
 
-Skills loaded just-in-time at execution: zoho-crm-v30, zoho-crm-email-v3-5
+Skills loaded just-in-time at execution: zoho-crm, zoho-crm-email (latest versions — resolved dynamically)
 
 ### Triage Only (No Action)
 
 Triggers: "what tasks are due", "show me my tasks", "task summary", "what do I have today"
 
-Skills loaded just-in-time if action needed: zoho-crm-v30
+Skills loaded just-in-time if action needed: zoho-crm (latest version — resolved dynamically)
+
+---
+
+## Dynamic Companion Skill Version Resolution
+
+Companion skill version numbers are NEVER hardcoded. At Phase 5 JIT load time, resolve the latest available version for each companion skill:
+
+```
+1. Glob the plugin path for skills matching the prefix:
+   ls /mnt/.local-plugins/cache/stratus-sales-toolkit/stratus-sales-toolkit/*/skills/{prefix}*/
+
+2. Parse version numbers from folder names
+   (e.g., zoho-crm-v32 = 32, fu30-followup-automation-v1-4 = 1.4)
+
+3. Load SKILL.md from the highest-versioned matching folder
+
+4. Fallback: if no match found at plugin path, try:
+   /mnt/.skills/skills/{prefix}*/
+   (standalone skill mounts, same resolution logic)
+```
+
+Examples:
+- Prefix `zoho-crm-v` → finds v30, v31, v32 → selects `zoho-crm-v32`
+- Prefix `fu30-followup-automation-v` → finds v1-3, v1-4 → selects `fu30-followup-automation-v1-4`
+- Prefix `zoho-crm-email-v` → finds v3-5, v3-6 → selects `zoho-crm-email-v3-6`
+
+This ensures companion skills are always at the latest version without any manual updates to this skill.
 
 ---
 
@@ -69,6 +97,15 @@ PHASE 0: GOOGLE CALENDAR MORNING BRIEFING (~3s)
 PHASE 1: FETCH + IR01 PRE-FILTER (~5s)
   Pull all open tasks from Zoho CRM using canonical query
   IR01 pre-filter: batch-classify IR01 tasks, remove from sub-agent list
+
+PHASE 1b: IR01 BATCH PRE-FILTER
+  Separate IR01 noise tasks from substantive tasks before sub-agent launch
+
+PHASE 1c: ORPHANED DEAL CHECK (~3s)
+  Fetch all active open deals owned by Chris Graves
+  Cross-reference against deal IDs already present in fetched tasks
+  Any active deal with no linked open task = orphaned (missed successor)
+  Surface as "Orphaned Deals" section in Phase 3 dashboard
 
 PHASE 2: PARALLEL SUB-AGENT EVALUATION (~10s flat)
   Launch one sub-agent per non-IR01 task using the Task tool
@@ -223,6 +260,79 @@ IR01 tasks appear as a single grouped entry in the dashboard with type "IR01_BAT
   ir01TaskIds: ['id1', 'id2', ...]
 }
 ```
+
+---
+
+## Phase 1c: Orphaned Deal Check
+
+An orphaned deal is an open/active deal that has no open task currently linked to it. This happens when a task was accidentally closed without creating a successor. Surface these so nothing slips through.
+
+### Step 1: Fetch Open Active Deals
+
+Use ZohoCRM_Search_Records on the Deals (Potentials) module:
+
+```
+Module: Deals
+criteria: (Owner:equals:2570562000141711002)and((Stage:equals:Qualification)or(Stage:equals:Proposal/Negotiation)or(Stage:equals:Verbal Commit/Invoicing))
+fields: id,Deal_Name,Stage,Amount,Account_Name,Contact_Name
+per_page: 200
+```
+
+Fetch all pages if needed. Store result as `open_deals[]`.
+
+Note: Only active stages are included. Closed Won and Closed (Lost) are intentionally excluded — this check is specifically for deals still in flight.
+
+### Step 2: Collect Deal IDs from Fetched Tasks
+
+From the tasks fetched in Phase 1, collect the `What_Id` field for any task where `$se_module` equals "Potentials" or "Deals". Store as `task_deal_ids[]` (a set for O(1) lookup).
+
+### Step 3: Identify Orphaned Deals
+
+```python
+task_deal_id_set = set(task_deal_ids)
+orphaned_deals = [deal for deal in open_deals if deal['id'] not in task_deal_id_set]
+```
+
+Any deal in `open_deals` whose `id` is NOT in `task_deal_id_set` has no open task linked. Flag it as orphaned.
+
+### Step 4: Surface in Dashboard
+
+If orphaned deals are found, include them as entries in the Phase 3 dashboard with type "ORPHANED_DEAL":
+
+```javascript
+{
+  id: 'orphaned_' + deal.id,
+  type: 'ORPHANED_DEAL',
+  dealName: deal.Deal_Name,
+  dealUrl: 'https://crm.zoho.com/crm/org647122552/tab/Potentials/' + deal.id,
+  taskUrl: null,
+  contactName: deal.Contact_Name || 'Unknown',
+  contactEmail: null,
+  dealStage: deal.Stage,
+  dealAmount: deal.Amount,
+  proposedAction: 'Create follow-up task — no open task currently linked to this deal',
+  actionNotes: 'This active deal has no open successor task. Likely a missed close-without-successor.',
+  gmailContext: null,
+  emailDraft: null,
+  successorDefault: { recommended: true, days: 3, type: 'ORPHANED_DEAL' }
+}
+```
+
+Group orphaned deals together in the dashboard under a visible "⚠️ Orphaned Deals" section header.
+
+If no orphaned deals are found: display "✓ All active deals have open tasks" in the dashboard footer.
+
+### Phase 5 Handling for ORPHANED_DEAL
+
+When a user approves an ORPHANED_DEAL item:
+1. Create a new Zoho Task:
+   - Subject: "Follow Up: {Deal_Name}"
+   - Due_Date: 3 business days from today (or dashboard-provided days)
+   - Owner: Chris Graves (2570562000141711002)
+   - What_Id: {Deal_Id}, $se_module: "Deals"
+   - Status: "Not Started"
+2. No email send. No task to close (there is no existing task — only a new one to create).
+3. Confirm task created via re-fetch.
 
 ---
 
@@ -406,6 +516,7 @@ For each sub-agent result, map to this JavaScript object:
 ```
 
 Include IR01 batch entry (see Phase 1b format) at the end if IR01 tasks exist.
+Include ORPHANED_DEAL entries (see Phase 1c format) as a separate section if orphaned deals found.
 
 ### Step 2: Write Task Data to Temp File
 
@@ -493,7 +604,7 @@ Subject: {email_subject}
 Header format:
 ```
 TASK TRIAGE SUMMARY -- {Date}
-Total: {X} tasks | Due today: {Y} | Overdue: {Z} | Inbox items: {N} | IR01 batch: {B}
+Total: {X} tasks | Due today: {Y} | Overdue: {Z} | Inbox items: {N} | IR01 batch: {B} | Orphaned deals: {O}
 Evaluation: {X} sub-agents ran in parallel
 
 Reply with:
@@ -565,15 +676,16 @@ INBOX_FYI:
 
 ### Just-In-Time Companion Skill Loading
 
-Companion skills (zoho-crm-v30, zoho-crm-email-v3-5, etc.) are NOT loaded at trigger time. They are loaded here at Phase 5, right before execution begins. This saves ~20K of context during the evaluation phases (0-3) where these skills aren't needed.
+Companion skills are NOT loaded at trigger time. They are loaded here at Phase 5, right before execution begins. This saves ~20K of context during the evaluation phases (0-3) where these skills aren't needed.
 
-Before executing any approved action, read the relevant companion skill(s):
-- For email sends: read zoho-crm-email-v3-5
-- For CRM operations: read zoho-crm-v30
-- For FU30 tasks: read fu30-followup-automation-v1-3
-- For ISR check-ins: read cisco-rep-locator-v1-1 and webex-bots-v1-7
+Before executing any approved action, resolve and read the relevant companion skill(s) using dynamic version resolution (see Dynamic Companion Skill Version Resolution above):
 
-Read once at Phase 5 start, not per-task.
+- For email sends: resolve and read `zoho-crm-email-v` (latest)
+- For CRM operations: resolve and read `zoho-crm-v` (latest)
+- For FU30 tasks: resolve and read `fu30-followup-automation-v` (latest)
+- For ISR check-ins: resolve and read `cisco-rep-locator-v` (latest) and `webex-bots-v` (latest)
+
+Read once at Phase 5 start, not per-task. Never hardcode version numbers here.
 
 ### Accepting Decisions
 
@@ -606,8 +718,9 @@ Phase 5 accepts decisions from three sources:
 FOR EACH approved action (in order, one at a time):
   1. If dashboard source: check for edited subject/body, apply edits to draft
   2. IF user requested edits (from any source): show FULL REVISED DRAFT, wait for re-approval BEFORE sending
-  3. Send email via Pipedream (Tier 1, instruction singular), confirm sent
-  4. Close task via Zoho CRM, confirm via re-fetch
+  3a. If type = ORPHANED_DEAL: create new Zoho Task linked to deal (see Phase 1c handling). No email send. Confirm via re-fetch.
+  3b. Otherwise: Send email via Pipedream (Tier 1, instruction singular), confirm sent
+  4. Close task via Zoho CRM (skip for ORPHANED_DEAL — no existing task to close), confirm via re-fetch
   5. Check successor enforcement:
      - If dashboard provided successor config: use it (enabled/days)
      - Otherwise: default successor logic (ALL open/ongoing deals need follow-up)
@@ -615,7 +728,7 @@ FOR EACH approved action (in order, one at a time):
   THEN next task
 
 NEVER execute two items simultaneously.
-NEVER batch Zoho CRM + Pipedream/Zapier in same parallel block.
+NEVER batch Zoho CRM + Pipedream/Zapier in same parallel block. These are different external services and must be called sequentially — send email first (Pipedream), confirm it sent, THEN update CRM (Zoho).
 NEVER skip confirmation between items.
 NEVER send a modified draft without first presenting the revised version for user approval.
 
@@ -676,7 +789,7 @@ NEVER reply only to the From address if other participants are in the thread.
    - If Stage = "Closed (Lost)": AUTO-CLOSE task. Note: "Deal is Closed Lost — task no longer relevant." No email. No successor. Done.
 3. If deal is active: SEARCH GMAIL for actual last contact (MANDATORY)
 4. Evaluate:
-   - Deal appears fulfilled but NOT Closed Won: check for weborder, route to weborder-to-deal-automation-v1-1 if found
+   - Deal appears fulfilled but NOT Closed Won: check for weborder, route to weborder-to-deal-automation (latest) if found
    - Active stage + no Gmail contact in 14+ days: Draft follow-up email
    - Active stage + recent Gmail contact (within 7 days): Close task with note, create successor
 5. If closing on active deal: MUST create successor task
@@ -693,7 +806,7 @@ NEVER reply only to the From address if other participants are in the thread.
 
 | Task Type | Pattern | Key Rule |
 |-----------|---------|----------|
-| FU30 | Subject starts with "FU30" | Route to fu30-followup-automation-v1-3 |
+| FU30 | Subject starts with "FU30" | Route to fu30-followup-automation (latest) |
 | DA90 | Subject starts with "DA90" | Check license expiration first |
 | DR01 | Subject starts with "DR01" | Check deal stage FIRST — Closed=auto-close |
 | ISR_CHECKIN | "ISR Check-In" | Look up rep via cisco-rep-locator |
@@ -702,6 +815,7 @@ NEVER reply only to the From address if other participants are in the thread.
 | SR | Subject starts with "SR" | Check service request context |
 | AUTO_CLOSE | "Cisco Quote Sent", "PO Submitted" | Verify action happened |
 | IR01_BATCH | Subject contains "IR01:" | Batch NEEDS_REVIEW — no sub-agent |
+| ORPHANED_DEAL | Phase 1c detection | Create new task — no email, no close |
 | NEEDS_REVIEW | Everything else | Present for manual decision |
 
 ---
@@ -750,14 +864,16 @@ due_date = add_business_days(today, 3)
 
 ## Companion Skills
 
-| Skill | Version | Purpose |
-|-------|---------|---------|
-| zoho-crm-v30 | v30 | CRM operations, task lifecycle, cascade prevention, never-close-won, weborder check, Gmail source of truth |
-| zoho-crm-email-v3-5 | v3.5 | Email drafting, Pipedream-first routing, draft presentation rules, tool UUID identification, full Chris Graves style guide |
-| fu30-followup-automation-v1-3 | v1.3 | FU30 enrichment, templates, 7-day lookahead, atomic lifecycle |
-| cisco-rep-locator-v1-1 | v1.1 | Cisco rep ID lookup for ISR deal assignment |
-| webex-bots-v1-7 | v1.7 | Webex messaging for Cisco rep outreach |
-| license-renewal-email-v1-1 | v1.1 | Renewal outreach for DA90 tasks with expiring licenses |
+Version numbers are resolved dynamically at runtime (see Dynamic Companion Skill Version Resolution). Never hardcode a version number here or in any JIT load instruction.
+
+| Skill | Folder Prefix | Purpose |
+|-------|---------------|---------|
+| zoho-crm | `zoho-crm-v` | CRM operations, task lifecycle, cascade prevention, never-close-won, weborder check, Gmail source of truth |
+| zoho-crm-email | `zoho-crm-email-v` | Email drafting, Pipedream-first routing, draft presentation rules, tool UUID identification, full Chris Graves style guide |
+| fu30-followup-automation | `fu30-followup-automation-v` | FU30 enrichment, templates, 7-day lookahead, atomic lifecycle |
+| cisco-rep-locator | `cisco-rep-locator-v` | Cisco rep ID lookup for ISR deal assignment |
+| webex-bots | `webex-bots-v` | Webex messaging for Cisco rep outreach |
+| license-renewal-email | `license-renewal-email-v` | Renewal outreach for DA90 tasks with expiring licenses |
 
 ---
 
@@ -781,7 +897,7 @@ due_date = add_business_days(today, 3)
 - NEVER fetch without the Owner filter (returns 79KB+ unreadable responses)
 - NEVER launch individual sub-agents for IR01 tasks — batch-classify them
 - NEVER parallelize Phase 5 execution steps
-- NEVER batch Zoho CRM + Pipedream/Zapier in same parallel block
+- NEVER batch Zoho CRM + Pipedream/Zapier in same parallel block — these are different external services; send email first, then update CRM
 - NEVER close without running the evaluation gate first
 - NEVER manually set Deal Stage to Closed Won
 - NEVER rely solely on Zoho Last_Activity_Time; always check Gmail
@@ -790,6 +906,7 @@ due_date = add_business_days(today, 3)
 - NEVER send a modified draft without first presenting the revised version for user approval
 - NEVER reply to only the From address; extract all To + CC participants via gmail_read_thread
 - NEVER skip the Phase 3 pre-presentation gate — spacing and style must be validated before output
+- NEVER hardcode companion skill version numbers; always resolve dynamically at Phase 5 JIT load time
 
 ### Tool UUID Reference
 

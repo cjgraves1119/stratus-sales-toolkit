@@ -1,6 +1,15 @@
 # Zoho CRM Email - Changelog
 
-### v3.5 (Current)
+### v3.6 (Current)
+
+- **DYNAMIC COMPANION SKILL VERSIONING**: Companion skill references (zoho-crm-v*, fu30-followup-automation-v*, license-renewal-email-v*) now resolved dynamically at load time using glob → parse → sort → load-highest pattern. Eliminates version drift permanently.
+- **NEW SECTION - Dynamic Companion Skill Version Resolution**: Documents the glob/parse/sort pattern, version examples table, and hyphenated version format reference.
+- **UPDATED Integration Points companion skills table**: Replaced hardcoded versions (zoho-crm-v28, fu30-followup-automation-v1-3) with prefix-based table that always resolves to latest.
+- **UPDATED NEVER rule**: Added `x Hardcode companion skill version numbers` to quick reference checklist.
+- **UPDATED Cascade Prevention**: Clarified rule with explicit reasoning (different external services, email first then CRM).
+- All v3.5 features retained.
+
+### v3.5
 
 - **DRAFT PRESENTATION RULES**: Body ends at closing line, no signature in draft preview, signature auto-included in send instruction
 - **PIPEDREAM MESSAGE ID SOURCING**: Thread reply message IDs must come from Pipedream's own list, not Gmail MCP

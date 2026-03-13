@@ -1,11 +1,11 @@
 ---
-name: fu30-followup-automation-v1-3
-description: "automates 30-day follow-up emails for closed deals with pipedream-first routing, tool uuid identification, strengthened successor task enforcement, draft presentation rules (no signature in preview), and gmail-sourced deal context. retrieves fu30 tasks from zoho crm, enriches with contact/deal/quote data, checks for active open deals and unpaid invoices, searches gmail for deal context, generates personalized check-in emails, and sends upon approval. triggers: fu30, fu30s, follow-up emails, 30-day check-in, 30 day follow up, post-sale check-in, check in on closed deals, customer check-ins, send fu30 emails, run fu30s."
+name: fu30-followup-automation-v1-4
+description: "automates 30-day follow-up emails for closed deals with pipedream-first routing, tool uuid identification, strengthened successor task enforcement, draft presentation rules, gmail-always context (no dollar threshold), dynamic companion skill version resolution, and fixed invoices query (no not_equals). retrieves fu30 tasks from zoho crm, enriches with contact/deal/quote data, checks for active open deals and unpaid invoices, searches gmail for deal context for all deals, generates personalized check-in emails, and sends upon approval. triggers: fu30, fu30s, follow-up emails, 30-day check-in, 30 day follow up, post-sale check-in, check in on closed deals, customer check-ins, send fu30 emails, run fu30s."
 ---
 
-# FU30 Follow-Up Email Automation v1.3
+# FU30 Follow-Up Email Automation v1.4
 
-Automates the workflow for sending 30-day post-sale check-in emails to customers. Includes atomic task lifecycle, cascade prevention, **embedded formatting rules**, **Pipedream-first send routing**, **tool UUID identification**, and **draft presentation rules**.
+Automates the workflow for sending 30-day post-sale check-in emails to customers. Includes atomic task lifecycle, cascade prevention, **embedded formatting rules**, **Pipedream-first send routing**, **tool UUID identification**, **draft presentation rules**, **Gmail-always context** (no dollar threshold), and **dynamic companion skill version resolution**.
 
 See CHANGELOG.md for what changed in each version.
 
@@ -14,14 +14,14 @@ See CHANGELOG.md for what changed in each version.
 
 When triggered, execute these steps in order:
 
-1. **Retrieve FU30 Tasks** -> 2. **Enrich Data** -> 3. **Filter/Flag** -> 4. **Generate Emails** -> 5. **Present for Approval** -> 6. **Atomic Send & Complete**
+1. **Retrieve FU30 Tasks** -> 2. **Enrich Data** -> 3. **Filter/Flag** -> 4. **Gmail Context** -> 5. **Generate Emails** -> 6. **Present for Approval** -> 7. **Atomic Send & Complete**
 
 ## Configuration
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | Date Range | 7 days | Tasks with Due_Date from today through +7 days |
-| Gmail Threshold | $5,000 | Deals >= this amount trigger Gmail context search |
+| Gmail Search | ALL deals | Search Gmail for ALL deals — no dollar threshold |
 | Auto-Send | false | Requires explicit approval unless told otherwise |
 | Owner Filter | Chris Graves (2570562000141711002) | Default task owner |
 | Signature | Full | Include full signature unless user says "no sig" |
@@ -98,26 +98,28 @@ criteria: (Account_Name:equals:{Account}) and ((Stage:equals:Qualification) or (
 
 **Per Account, search Invoices:**
 ```
-criteria: (Account_Name:equals:{Account}) and (Status:not_equals:Paid)
+criteria: (Account_Name:equals:{Account}) and ((Status:equals:Unpaid) or (Status:equals:Overdue) or (Status:equals:Sent) or (Status:equals:Draft) or (Status:equals:Partial))
 fields: id,Invoice_Number,Grand_Total,Status
 ```
+
+**NOTE:** Do NOT use `Status:not_equals:Paid` — Zoho returns INVALID_QUERY for `not_equals` operators. Use explicit `equals` conditions with `or` as shown above.
 
 **If found:** Store invoice details for email. Generate payment URL:
 ```
 https://www.stratusinfosystems.com/invoicing/?inva={Grand_Total}&invn={Invoice_Number}&curr=usd
 ```
 
-## Step 4: Gmail Context (Recommended for ALL Deals)
+## Step 4: Gmail Context (ALWAYS — No Dollar Threshold)
 
-**ALWAYS search Gmail** for recent context before drafting. Gmail is the source of truth for last contact date and conversation tone.
+**ALWAYS search Gmail for ALL deals** before drafting. Gmail is the source of truth for last contact date and conversation tone. There is no dollar threshold — search Gmail regardless of deal amount.
 
 - Search Gmail: `from:{contact_email} OR to:{contact_email}` or company name
 - Look for: project details, recent support issues, deployment notes, last contact date
 - Extract relevant context for personalization
 
-**For deals >= $5,000:** Gmail search is MANDATORY (not optional). Use context to personalize the email body between greeting and standard check-in.
+**For all deals:** Use Gmail context to personalize the email body between the greeting and the standard check-in. If no relevant context is found, proceed with the standard template — but always check first.
 
-**For deals < $5,000:** Gmail search is recommended. If recent support issues or project context is found, incorporate it. If no relevant context, proceed with standard template.
+**If Gmail search fails:** Proceed without context and note in the draft that context was unavailable.
 
 ## Step 5: Generate Emails
 
@@ -221,8 +223,8 @@ chrisg@stratusinfosystems.com
 Sales & Logistics | Project Consulting | IT Management | Install & Config | Purchase Financing
 ```
 
-**High-Value Template ($5k+):**
-Add project-specific context from Gmail between greeting and standard check-in.
+**Contextual Template (Gmail context found):**
+Add project-specific context from Gmail between the greeting and the standard check-in line. This applies to any deal where Gmail context exists, regardless of deal size.
 
 **Unpaid Invoice Addendum:**
 If unpaid invoice exists, add before signature:
@@ -338,7 +340,7 @@ INCORRECT (parallel, NEVER DO THIS):
     - zoho_update_task
 ```
 
-Zoho CRM MCP calls and Pipedream/Zapier MCP calls must NEVER execute in the same parallel block.
+Zoho CRM MCP calls and Pipedream/Zapier MCP calls must NEVER execute in the same parallel block. These are different external services — send email first, then update CRM.
 
 ### Standard Contacts
 1. Send email (environment-aware routing)
@@ -379,7 +381,7 @@ Path: `moduleName: "Contacts"`, `id: {Contact_Id}`
 - Email mentions unpaid invoice (follow up on payment)
 - Email proposes next steps or a call
 - Email asks "how are things going?" with product-specific context (expect a response)
-- Contact is at a high-value account ($5k+)
+- Contact is at a high-value account
 
 **Skip follow-up task ONLY when:**
 - Email is a purely generic informational check-in with NO specific ask and NO invoice mention
@@ -419,6 +421,31 @@ def add_business_days(start_date, days):
     return current
 ```
 
+## Dynamic Companion Skill Version Resolution
+
+Never hardcode companion skill version numbers. At runtime, resolve the latest version by globbing the plugin skills directory:
+
+```
+1. Glob: ls /mnt/.local-plugins/cache/stratus-sales-toolkit/stratus-sales-toolkit/*/skills/{prefix}*/
+2. Parse version numbers from matching folder names
+3. Load SKILL.md from the highest-versioned folder
+4. Fallback: try /mnt/.skills/skills/{prefix}*/
+
+Prefix examples:
+  zoho-crm-v             → finds v30, v31, v32 → selects zoho-crm-v32
+  zoho-crm-email-v       → finds v3-5, v3-6 → selects zoho-crm-email-v3-6
+```
+
+## Companion Skills
+
+| Role | Folder Prefix | Purpose |
+|------|---------------|---------|
+| CRM operations | zoho-crm-v | Task lifecycle, cascade prevention, never-close-won, Gmail source of truth |
+| Email routing | zoho-crm-email-v | 4-tier routing, tool UUID identification, Pipedream-first, draft presentation rules |
+| Rep lookup | cisco-rep-locator-v | Cisco rep ID lookup for ISR deal context |
+
+Resolve each prefix dynamically at runtime (see Dynamic Companion Skill Version Resolution above).
+
 ## Optimization Notes
 
 ### Batch Operations
@@ -441,11 +468,12 @@ def add_business_days(start_date, days):
 | Contact email opt-out blocked | Cowork: Pipedream sends normally (opt-out irrelevant). Chat: Add to opt-out approval list for Zoho CRM Mail |
 | No email on contact | Skip, add to missing data list |
 | Deal lookup fails | Use generic template |
-| Gmail search fails | Proceed without context (but note in draft that context was unavailable) |
+| Gmail search fails | Proceed without context (note in draft that context was unavailable) |
 | Pipedream send fails (Cowork) | Try Zoho CRM Send Mail (Tier 2), then Gmail compose (Tier 3), then Zapier last resort (Tier 4) |
 | All send paths fail (Cowork) | Ask user to send manually via Gmail compose link |
 | Zoho send fails (Chat) | Generate Gmail compose link |
 | Wrong UUID or parameter used | Stop, identify correct tool, retry with correct UUID and parameter name |
+| INVALID_QUERY on Invoices | Remove any not_equals operators; use explicit equals conditions with or |
 
 ## Output Summary
 
@@ -457,12 +485,6 @@ After completion, provide:
 - Skipped items with reasons
 - Any verification failures
 
-## Companion Skills
-
-- zoho-crm-v28 (CRM operations, task lifecycle, cascade prevention, never-close-won, Gmail source of truth)
-- zoho-crm-email-v3-5 (4-tier email routing, tool UUID identification, Pipedream-first, draft presentation rules)
-- cisco-rep-locator-v1-1 (rep lookup for ISR deal context)
-
 ## NEVER Do This
 
 - NEVER use Zapier (Tier 4) when Pipedream (Tier 1) is available in Cowork
@@ -470,9 +492,11 @@ After completion, provide:
 - NEVER use "instructions" (plural) for Pipedream or "instruction" (singular) for Zapier
 - NEVER show the full signature block in draft preview tables
 - NEVER present two paragraphs adjacent without a blank line between them
-- NEVER skip Gmail search before drafting (especially for deals >= $5k)
+- NEVER skip Gmail search before drafting any FU30 email — Gmail context applies to ALL deals regardless of amount
 - NEVER parallelize send + task closure in the same API call block
 - NEVER skip the follow-up task for emails that ask for feedback or mention invoices
+- NEVER use `not_equals` in Zoho CRM queries — it returns INVALID_QUERY; use explicit `equals` conditions with `or`
+- NEVER hardcode companion skill version numbers — always resolve the latest version dynamically at runtime
 
 
 ---
