@@ -1,5 +1,25 @@
 # Daily Task Engine Changelog
 
+### v2.2
+
+- **ORCHESTRATOR-LEVEL DEAL PRE-LOAD (Phase 1d)**: Deal data fetched once at orchestrator level using batched `ZohoCRM_Get_Records` calls (up to 10 IDs per call). Results written to `/tmp/deal_context.json` and injected into sub-agent prompts. Eliminates redundant per-agent deal lookups that caused 28/38 failures in Haiku testing.
+- **ORCHESTRATOR-LEVEL GMAIL PRE-LOAD (Phase 2a)**: Gmail context fetched in batches of 5 contacts using OR-combined queries (`from:email1 OR to:email1 OR from:email2...`). Results written to `/tmp/gmail_context.json`. Eliminates per-agent Gmail searches that consumed 2 API calls each.
+- **BATCHED SUB-AGENT LAUNCHES (Phase 2b)**: Sub-agents launched in groups of ~12 (2-3 batches) instead of all at once. Reduces parallel execution pressure and improves reliability across all model tiers.
+- **LEAN SUB-AGENT PROMPTS**: Voice/style guide removed from sub-agent prompts entirely. Sub-agents focus on evaluation logic only. Saves ~2K tokens per agent (~60-70K total for 30 tasks).
+- **PHASE 3 AS EXCLUSIVE VALIDATION POINT**: All voice/style validation consolidated in Phase 3 pre-presentation gate. Sub-agents no longer responsible for style compliance. Five-check gate (paragraph spacing, filler openers, AI phrases, em dashes, closing CTA) runs on all drafts before dashboard generation.
+- **HYBRID EMAIL TEMPLATES**: Structural templates for DR01 and FU30 task types with personalized sentence slots. Templates provide opening/body/closing structure while allowing context-specific personalization. Reduces draft variance and token usage.
+- **RESULT AGGREGATION WITH ERROR HANDLING (Phase 2c)**: Dedicated aggregation step collects sub-agent JSON from `/tmp/task_eval_*.json` files. Catches JSONDecodeError and missing files, inserts NEEDS_REVIEW placeholders instead of failing the entire run.
+- **TWO NEW NEVER RULES**: "NEVER embed the full voice/style guide in sub-agent prompts" and "NEVER have sub-agents fetch deal records or search Gmail independently."
+- **DYNAMIC COMPANION SKILL VERSIONING**: Companion skills resolved at runtime via folder prefix globbing (`zoho-crm-v*/SKILL.md`), never hardcoded version numbers.
+- **ESTIMATED SAVINGS**: ~120-150K tokens per run for 30 tasks. Enables reliable Haiku execution (~$2.40/run vs ~$7-9/run on Opus, 73% cost reduction).
+- All v2.1 features retained.
+
+### v2.1
+
+- **ORPHANED DEAL CHECK (Phase 1c)**: New phase scans for deals with open tasks but no recent activity, flags for review.
+- **DYNAMIC COMPANION SKILL VERSION RESOLUTION**: Skills loaded by prefix glob pattern instead of hardcoded version numbers.
+- All v2.0 features retained.
+
 ### v2.0
 
 - **TOKEN-OPTIMIZED ARCHITECTURE**: Complete audit of context window usage identified ~180K bytes/run of savings across 5 optimizations. Session previously compacted 2x before reaching Phase 5; these changes target root causes.
