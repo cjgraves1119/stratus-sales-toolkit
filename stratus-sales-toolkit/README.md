@@ -21,6 +21,7 @@ Sales operations plugin for Stratus Information Systems. Covers the full Cisco/M
 | **pharos-iq-automation** | PharosIQ lead-to-deal conversion with Zoho CRM |
 | **skill-creator-v10** | Skill authoring with eval/benchmark framework, plugin-aware mode, GitHub auto-sync, and description optimization |
 | **plugin-setup-guide** | Automatic user detection and MCP connection health check — guides setup of missing integrations required for skill operations |
+| **echo-contact-enrichment-v2-2** | Cisco Meraki ECHO contact list processor: partner filtering, Zoho CRM cross-ref, auto-detect geography, Clay-first enrichment with conditional ZoomInfo for IT-leadership gaps, adaptive title filtering, per-account state routing |
 | **skill-downloader-v1-0** | Bulk export all plugin skills as .skill files for one-click install into standard Claude desktop sessions |
 
 ## Required Connectors
