@@ -10,7 +10,7 @@ Sales operations plugin for Stratus Information Systems. Covers the full Cisco/M
 | **zoho-crm-email-v3-6** | Email composition and sending with Pipedream-first routing and dynamic companion skill version resolution |
 | **daily-task-engine-v2-2** | Orchestrator-level Gmail and deal pre-loading, batched sub-agent launches, lean sub-agent prompts, hybrid email templates. Interactive HTML dashboard with card/compact/kanban views, inline email editing, batch approve/skip/reject, Send to Claude integration, dark mode, and chat table fallback. Phase 3 centralized voice/style validation, orphaned deal check, dynamic companion skill version resolution |
 | **fu30-followup-automation-v1-4** | 30-day post-sale follow-up email automation — always searches Gmail for context (no dollar threshold), dynamic companion skill version resolution, banned not_equals Zoho query fix |
-| **stratus-quoting-bot-v4-6** | Cisco/Meraki URL quote generation with 1,222 SKU pricing catalog |
+| **stratus-quoting-bot-v5-0** | Cisco/Meraki URL quote generation with hybrid specs system, anti-hallucination rules, license dashboard OCR 5-rule mismatch logic, MT free-tier, CW9172H hospitality support, and opt-in live datasheet RAG |
 | **stratus-quote-pdf-v2-0** | Stratus-branded PDF quote generation from Zoho CRM data |
 | **subscription-modification-v2-6** | Cisco subscription add-on and modification quote processing |
 | **ccw-subscription-renewal-v1-2** | CCW subscription renewal workflow with browser automation |
