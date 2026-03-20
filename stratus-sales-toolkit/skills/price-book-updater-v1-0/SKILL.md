@@ -84,9 +84,16 @@ Ecomm Price = CEILING(Promotion Price / 0.87)
 
 ### Step 5 — Flag new products
 
-Compare remaining SKUs against the previous `prices.json` (if provided):
-- **Known SKU** (exists in previous JSON) → confirmed, include in `prices` dict
-- **New SKU** (not in previous JSON) → flag for review, include in `_new_products_flagged` array only
+Before filtering, preserve each row's **original SKU** (pre-transformation) in a `_original_sku` column. This is critical for matching transformed SKUs back to the old JSON.
+
+Compare remaining SKUs against the previous `prices.json` (if provided). A SKU is **confirmed** if EITHER:
+- The current (post-transform) SKU exists in the old JSON, OR
+- The original pre-transform SKU exists in the old JSON
+
+This ensures renamed SKUs (e.g. `CW9176I-CFG-RF` → `CW9176I-RTG`) are correctly recognized as existing products rather than flagged as new.
+
+- **Confirmed** → include in `prices` dict
+- **New** (neither current nor original SKU in old JSON) → flag for review, include in `_new_products_flagged` only
 
 If no previous JSON is provided, treat all SKUs as confirmed.
 
