@@ -59,12 +59,13 @@ DETECTED USER PROFILE:
 | Zoho Owner ID | {id or "needs lookup"} |
 ```
 
-If the user is Chris Graves (chrisg@stratusinfosystems.com), set Zoho Owner ID = 2570562000141711002 (from preferences).
-
-For any other user, look up their Zoho Owner ID:
+Look up the Zoho Owner ID for the detected user by searching Zoho CRM:
 ```
-ZohoCRM_Search_Records → module: "Users", email: "{detected_email}"
+ZohoCRM_getRecords(module="Users", type="CurrentUser") → extract id
 ```
+Display the ID and prompt the user to cache it in CLAUDE.md:
+> Add this line to your CLAUDE.md: `ZOHO_OWNER_ID: {resolved_id}`
+> This prevents a Zoho API lookup on every future task run.
 
 ---
 

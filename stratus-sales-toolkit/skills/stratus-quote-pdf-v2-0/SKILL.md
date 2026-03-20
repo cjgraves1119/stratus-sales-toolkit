@@ -39,7 +39,7 @@ quote_data = {
     "subject": "Quote Subject/Offer Name",
     "stage": "Review",
     "valid_till": "Feb 28, 2025",
-    "account_rep": "Chris Graves",
+    "account_rep": "{USER_NAME}",  // resolved from <user> block in system prompt
     "sub_total": 7827.30,
     "grand_total": 7827.30,
     "bill_to": {

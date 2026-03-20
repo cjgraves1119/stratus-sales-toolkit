@@ -9,6 +9,17 @@ Optimized workflow for processing Cisco subscription modifications. Creates cust
 
 See CHANGELOG.md for what changed in each version.
 
+## IDENTITY RESOLUTION
+
+Before creating deals, quotes, or tasks, resolve:
+
+- **USER_NAME** — from the `<user>` block in the Claude system prompt
+- **ZOHO_OWNER_ID** — check CLAUDE.md for `ZOHO_OWNER_ID: {id}`; if absent, call `ZohoCRM_getRecords(module="Users", type="CurrentUser")` and extract `id`. Prompt user to cache it in CLAUDE.md.
+
+If ZOHO_OWNER_ID cannot be resolved, stop and display:
+> ⚠️ **SETUP NEEDED** — Add `ZOHO_OWNER_ID: [your Zoho user ID]` to CLAUDE.md, or run "check my setup".
+
+See `references/identity-resolution.md` for Stratus-wide constants (org ID, Stratus Sales ID).
 
 ## REQUIRED FIELDS (MUST ENFORCE)
 
@@ -52,7 +63,7 @@ See CHANGELOG.md for what changed in each version.
 | $se_module | YES | "Deals" | **CRITICAL - must include** |
 | Due_Date | YES | Today + 7 days | Default follow-up |
 | Status | YES | "Not Started" | Default |
-| Owner | YES | Chris Graves | ID: 2570562000141711002 |
+| Owner | YES | {USER_NAME} | ID: {ZOHO_OWNER_ID} — resolved from CLAUDE.md or Zoho API |
 
 ## Pre-Creation Validation (MANDATORY)
 
@@ -91,7 +102,7 @@ PRE-CREATION VALIDATION - QUOTE:
 ## Quick Reference IDs
 
 ```
-Chris Graves User ID: 2570562000141711002
+Current User Zoho ID: {ZOHO_OWNER_ID} — resolved at runtime from CLAUDE.md or Zoho API
 Stratus Sales ID: 2570562000027286729
 Org ID: org647122552
 
@@ -531,7 +542,7 @@ print("PRE-VALIDATION PASSED - All {n} products active and ready")
   "Due_Date": "{today + 7 days}",
   "Status": "Not Started",
   "Priority": "Normal",
-  "Owner": {"id": "2570562000141711002"},
+  "Owner": {"id": "{ZOHO_OWNER_ID}"},
   "Description": "Follow up on {SubID} subscription modification. CCW Deal {ccw_id} expires {expiration}."
 }
 ```
@@ -692,7 +703,7 @@ SUBSCRIPTION MODIFICATION DEFAULTS (ALWAYS APPLY):
 • Cisco_Billing_Term (Quote): "Prepaid Term"
 
 KEY IDS:
-• Chris Graves: 2570562000141711002
+• Current User (ZOHO_OWNER_ID): resolved at runtime from CLAUDE.md or Zoho API
 • Stratus Sales: 2570562000027286729
 • Org ID: org647122552
 

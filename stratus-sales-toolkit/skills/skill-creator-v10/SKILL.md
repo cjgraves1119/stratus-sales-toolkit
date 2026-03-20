@@ -394,19 +394,23 @@ Runs automatically after deploying any plugin skill. Skip for local-only skills.
 ### GitHub Sync Configuration
 
 ```
-Repository: github.com/cjgraves1119/stratus-sales-toolkit
+Repository: github.com/{GITHUB_USERNAME}/stratus-sales-toolkit  — read from CLAUDE.md (GITHUB_USERNAME: ...)
 Branch: main
-Auth: Classic PAT (stored in user preferences, never commit to repo)
+Auth: Classic PAT — read from CLAUDE.md (GITHUB_PAT: ...) or user preferences; never hardcode
 Local plugin clone: /home/claude/stratus-sales-toolkit
 ```
 
-### PAT Guard — Check Before Any Git Operation
+### GitHub Identity — Check Before Any Git Operation
+
+Resolve from CLAUDE.md before cloning:
+- `GITHUB_USERNAME: {username}` — the GitHub account that owns the plugin repo
+- `GITHUB_PAT: {token}` — a Classic PAT with repo write access
 
 ```
-IF no PAT found in user preferences:
+IF GITHUB_USERNAME or GITHUB_PAT not found in CLAUDE.md or user preferences:
   → STOP GitHub sync entirely
-  → Display: "GitHub sync skipped — no PAT found. Skill deployed locally.
-     To enable sync, add your GitHub Classic PAT to Cowork preferences."
+  → Display: "GitHub sync skipped — GITHUB_USERNAME and/or GITHUB_PAT not found.
+     Add both to your CLAUDE.md to enable sync."
   → Proceed to Step 4 (.skill file generation) so user still gets local install
   → Do NOT attempt git clone, pull, or push
 ```
@@ -415,10 +419,10 @@ IF no PAT found in user preferences:
 
 ```bash
 cd /home/claude
-git clone https://cjgraves1119:{CLASSIC_PAT}@github.com/cjgraves1119/stratus-sales-toolkit.git
+git clone https://{GITHUB_USERNAME}:{CLASSIC_PAT}@github.com/{GITHUB_USERNAME}/stratus-sales-toolkit.git
 cd stratus-sales-toolkit
-git config user.name "Chris Graves"
-git config user.email "chrisg@stratusinfosystems.com"
+git config user.name "{USER_NAME}"      # from <user> block in system prompt
+git config user.email "{USER_EMAIL}"    # from <user> block in system prompt
 
 # If already cloned:
 cd /home/claude/stratus-sales-toolkit && git pull origin main

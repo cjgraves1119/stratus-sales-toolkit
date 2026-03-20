@@ -9,6 +9,17 @@ Automates the workflow for sending 30-day post-sale check-in emails to customers
 
 See CHANGELOG.md for what changed in each version.
 
+## IDENTITY RESOLUTION
+
+Before retrieving tasks or drafting emails, resolve the current user's identity:
+
+- **USER_NAME / USER_EMAIL** — from the `<user>` block in the Claude system prompt (present in every session). Use USER_NAME in email signatures. Use USER_EMAIL as the Pipedream `from` address.
+- **ZOHO_OWNER_ID** — the current user's Zoho CRM numeric user ID. Check CLAUDE.md for `ZOHO_OWNER_ID: {id}`. If absent, call `ZohoCRM_getRecords(module="Users", type="CurrentUser")` and extract `id`. Cache by asking user to add `ZOHO_OWNER_ID: {id}` to CLAUDE.md.
+
+If ZOHO_OWNER_ID cannot be resolved, display a setup prompt before proceeding:
+> ⚠️ **SETUP NEEDED** — Add `ZOHO_OWNER_ID: [your Zoho user ID]` to CLAUDE.md, or run "check my setup" to auto-detect it.
+
+See `references/identity-resolution.md` for full details.
 
 ## Quick Start
 
@@ -23,14 +34,14 @@ When triggered, execute these steps in order:
 | Date Range | 7 days | Tasks with Due_Date from today through +7 days |
 | Gmail Search | ALL deals | Search Gmail for ALL deals — no dollar threshold |
 | Auto-Send | false | Requires explicit approval unless told otherwise |
-| Owner Filter | Chris Graves (2570562000141711002) | Default task owner |
+| Owner Filter | {USER_NAME} ({ZOHO_OWNER_ID}) | Default task owner — resolved from CLAUDE.md or auto-detected |
 | Signature | Full | Include full signature unless user says "no sig" |
 
 ## Step 1: Retrieve FU30 Tasks
 
 **Zoho Search - Tasks Module:**
 ```
-criteria: (Subject:starts_with:FU30) and (Status:equals:Not Started) and (Owner:equals:2570562000141711002)
+criteria: (Subject:starts_with:FU30) and (Status:equals:Not Started) and (Owner:equals:{ZOHO_OWNER_ID})
 fields: id,Subject,Due_Date,What_Id,Who_Id,Status
 ```
 
@@ -144,7 +155,7 @@ EXAMPLE DRAFT PREVIEW (CORRECT):
   "Hey Sarah, [body]... How are things going so far? Best,"
 
 EXAMPLE DRAFT PREVIEW (INCORRECT):
-  "Hey Sarah, [body]... Best, Chris Graves Regional Sales Director..."
+  "Hey Sarah, [body]... Best, {USER_NAME} Regional Sales Director..."
 ```
 
 ### CRITICAL: Tool UUID Identification
@@ -196,11 +207,11 @@ Now that it's been a few weeks since your license renewal went through, I wanted
 How are things going so far?
 
 Best,
-Chris Graves
+{USER_NAME}
 Regional Sales Director
 Stratus Information Systems
 415-326-3661
-chrisg@stratusinfosystems.com
+{USER_EMAIL}
 Sales & Logistics | Project Consulting | IT Management | Install & Config | Purchase Financing
 ```
 
@@ -215,11 +226,11 @@ Now that it's been a few weeks since you received your {Product_Details}, I want
 How are things going so far?
 
 Best,
-Chris Graves
+{USER_NAME}
 Regional Sales Director
 Stratus Information Systems
 415-326-3661
-chrisg@stratusinfosystems.com
+{USER_EMAIL}
 Sales & Logistics | Project Consulting | IT Management | Install & Config | Purchase Financing
 ```
 
@@ -236,8 +247,9 @@ By the way, I noticed invoice #{Invoice_Number} for ${Grand_Total} is still show
 If user requests "no sig" or "remove signature", end emails with just:
 ```
 Best,
-Chris
+{USER_NAME_FIRST}
 ```
+(Where USER_NAME_FIRST is the first name extracted from USER_NAME)
 
 ### Subject Line Variations
 - Renewal: "Checking In on Your Renewal" or "Quick Check-In on Your Renewal"
@@ -363,7 +375,7 @@ Zoho CRM MCP calls and Pipedream/Zapier MCP calls must NEVER execute in the same
 {
   "data": [{
     "to": [{"email": "{email}", "user_name": "{First_Name} {Last_Name}"}],
-    "from": {"email": "chrisg@stratusinfosystems.com", "user_name": "Chris Graves"},
+    "from": {"email": "{USER_EMAIL}", "user_name": "{USER_NAME}"},
     "subject": "{subject}",
     "content": "{html_content}",
     "mail_format": "html"
@@ -397,7 +409,7 @@ Path: `moduleName: "Contacts"`, `id: {Contact_Id}`
     "Due_Date": "{3_business_days_from_today}",
     "Status": "Not Started",
     "Priority": "Normal",
-    "Owner": {"id": "2570562000141711002"},
+    "Owner": {"id": "{ZOHO_OWNER_ID}"},
     "What_Id": "{Deal_Id}",
     "$se_module": "Deals",
     "Who_Id": "{Contact_Id}",

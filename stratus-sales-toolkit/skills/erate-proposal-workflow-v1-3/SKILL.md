@@ -36,7 +36,7 @@ Complete workflow for analyzing E-Rate Form 470 RFPs, mapping competitor equipme
 
 - Company: Stratus Information Systems (Cisco-exclusive reseller, Meraki specialist)
 - USAC SPIN: **143052656**
-- Primary Contact: Chris Graves, Regional Sales Director, chrisg@stratusinfosystems.com, (888) 366-4911
+- Primary Contact: {USER_NAME}, {USER_TITLE}, {USER_EMAIL} — resolved from the `<user>` block in the Claude system prompt; title from user preferences if available
 - Installation SKU: SIS101 at $200/hour
 
 ---

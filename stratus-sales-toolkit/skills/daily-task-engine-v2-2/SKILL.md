@@ -13,6 +13,20 @@ See CHANGELOG.md for what changed in each version.
 
 ---
 
+## IDENTITY RESOLUTION
+
+Before executing Phase 1 (task retrieval), resolve the current user's identity:
+
+- **USER_NAME / USER_EMAIL** — from the `<user>` block in the Claude system prompt (present in every session). Use USER_EMAIL as the Pipedream `from` address and for reply-all exclusions. Use USER_NAME in task ownership labels.
+- **ZOHO_OWNER_ID** — the current user's Zoho CRM numeric user ID. Check CLAUDE.md for `ZOHO_OWNER_ID: {id}`. If absent, call `ZohoCRM_getRecords(module="Users", type="CurrentUser")` and extract `id`. Cache by asking user to add `ZOHO_OWNER_ID: {id}` to CLAUDE.md.
+
+If ZOHO_OWNER_ID cannot be resolved, display a setup prompt and stop:
+> ⚠️ **SETUP NEEDED** — Add `ZOHO_OWNER_ID: [your Zoho user ID]` to CLAUDE.md, or run "check my setup" to auto-detect it.
+
+See `references/identity-resolution.md` for full details.
+
+---
+
 ## Trigger Patterns
 
 ### Full Daily Task Review
@@ -21,7 +35,7 @@ Triggers: /DailyTasks, "daily tasks", "review my tasks", "task review", "help me
 
 What it does:
 1. Phase 0: Google Calendar morning briefing
-2. Phase 1: Pull all open tasks owned by Chris Graves, due today or overdue
+2. Phase 1: Pull all open tasks owned by the current user, due today or overdue
 3. Phase 1b: IR01 pre-filter — batch-classify IR01 tasks before sub-agent launch
 4. Phase 1c: Orphaned deal check — find active deals with no open task linked
 5. Phase 1d: Deal data pre-load — batch fetch deal records, build lookup map
@@ -107,7 +121,7 @@ PHASE 5: SEQUENTIAL EXECUTION (JIT skill loading)
 
 ## Phase 0: Google Calendar Morning Briefing
 
-Before pulling CRM tasks, fetch today's calendar to give Chris a quick overview of the day.
+Before pulling CRM tasks, fetch today's calendar to give the user a quick overview of the day.
 
 ### Step 1: Fetch Today's Events
 
@@ -154,7 +168,7 @@ If no events today, display: "📅 No meetings today — clear calendar for task
 ### Primary Query (Use This First)
 
 ```
-Criteria: (Owner:equals:2570562000141711002)and(Due_Date:less_equal:{TODAY})and(Status:equals:Not Started)
+Criteria: (Owner:equals:{ZOHO_OWNER_ID})and(Due_Date:less_equal:{TODAY})and(Status:equals:Not Started)
 Page size: 50
 Pages: Fetch pages 1, 2, 3 (up to 150 records)
 Sort: Created_Time asc (Zoho only supports id, Created_Time, Modified_Time for sort_by — NEVER use Due_Date)
@@ -167,7 +181,7 @@ Replace `{TODAY}` with today's date in YYYY-MM-DD format.
 If the primary query fails with INVALID_QUERY or returns no results when tasks are expected:
 
 ```
-Criteria: (Owner:equals:2570562000141711002)and(Due_Date:less_equal:{TODAY})
+Criteria: (Owner:equals:{ZOHO_OWNER_ID})and(Due_Date:less_equal:{TODAY})
 Page size: 50
 Pages: Fetch pages 1, 2, 3
 ```
@@ -235,7 +249,7 @@ Use ZohoCRM_Search_Records on the Deals module:
 
 ```
 Module: Deals
-criteria: (Owner:equals:2570562000141711002)and((Stage:equals:Qualification)or(Stage:equals:Proposal/Negotiation)or(Stage:equals:Verbal Commit/Invoicing))
+criteria: (Owner:equals:{ZOHO_OWNER_ID})and((Stage:equals:Qualification)or(Stage:equals:Proposal/Negotiation)or(Stage:equals:Verbal Commit/Invoicing))
 fields: id,Deal_Name,Stage,Amount,Account_Name,Contact_Name
 per_page: 200
 ```
@@ -419,7 +433,7 @@ for message in gmail_results:
                     'last_contact_date': date,
                     'thread_id': thread_id,
                     'thread_url': f'https://mail.google.com/mail/u/0/#all/{thread_id}',
-                    'direction': 'from_customer' if contact_email.lower() in sender.lower() else 'from_chris',
+                    'direction': 'from_customer' if contact_email.lower() in sender.lower() else 'from_user',
                     'snippet': message.get('snippet', '')[:200]
                 }
 ```
@@ -550,7 +564,7 @@ Hey {first_name}!
 {Closing question}
 
 Thanks,
-Chris
+{USER_NAME}
 ```
 
 **FU30 Check-In Template:**
@@ -564,7 +578,7 @@ Hey {first_name}!
 {Closing question}
 
 Thanks,
-Chris
+{USER_NAME}
 ```
 
 These templates give sub-agents structure (reducing inconsistency across models) while the personalized sentence slots ensure each email is contextual. The orchestrator's Phase 3 gate validates the final output regardless.
@@ -880,7 +894,7 @@ When a user requests ANY edits to a proposed draft, the full revised draft MUST 
 
 ```
 REVISED DRAFT (pending your approval):
-Mode: Pipedream (Tier 1) | From: chrisg@stratusinfosystems.com | To: {recipients}
+Mode: Pipedream (Tier 1) | From: {USER_EMAIL} | To: {recipients}
 Subject: {subject}
 ---
 {full revised email body}
@@ -895,7 +909,7 @@ Send this revised version? (yes to send, or request further changes)
 Before sending ANY reply to an existing email thread:
 1. Call `gmail_read_thread` with the thread ID
 2. From the MOST RECENT MESSAGE, extract all To + CC addresses
-3. Exclude chrisg@stratusinfosystems.com from recipients
+3. Exclude {USER_EMAIL} from recipients
 4. Use extracted addresses as To and CC for the outgoing reply
 
 ---
@@ -963,7 +977,7 @@ BEFORE closing a task on an active deal:
   3. IF no other open tasks: MUST create successor:
      - Subject: "Follow Up: {Contact_Name} - {Company}"
      - Due_Date: dashboard successor days if provided, else 3 business days
-     - Owner: Chris Graves (2570562000141711002)
+     - Owner: {USER_NAME} ({ZOHO_OWNER_ID})
      - What_Id: {Deal_Id}, $se_module: "Deals"
 
 ---

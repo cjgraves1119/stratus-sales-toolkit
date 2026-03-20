@@ -10,6 +10,16 @@ Pipedream-first email routing with **4-tier failover**, **draft presentation rul
 ---
 
 See CHANGELOG.md for what changed in each version.
+
+---
+
+## IDENTITY RESOLUTION
+
+Resolve the current user's identity from the Claude session context before drafting or sending any email:
+
+- **USER_NAME / USER_EMAIL** — from the `<user>` block in the Claude system prompt. Every session includes this. Use USER_NAME for email signatures and display names. Use USER_EMAIL as the Pipedream `from` address and Zoho CRM sender email.
+
+See `references/identity-resolution.md` for full details.
 ---
 
 ## CRITICAL: Tool UUID Identification
@@ -158,7 +168,7 @@ Before composing a Pipedream thread reply, you MUST have:
 
 ```json
 {
-  "instruction": "Reply to the email with message ID [MESSAGE_ID] in thread [THREAD_ID], sending to [NAME] at [EMAIL] with subject '[Re: Exact Subject]' and body '[Full plain text body with proper spacing]'. This must be sent as a reply within the existing email thread, not as a new standalone email. Use the In-Reply-To and References headers to ensure proper threading. Send from chrisg@stratusinfosystems.com.",
+  "instruction": "Reply to the email with message ID [MESSAGE_ID] in thread [THREAD_ID], sending to [NAME] at [EMAIL] with subject '[Re: Exact Subject]' and body '[Full plain text body with proper spacing]'. This must be sent as a reply within the existing email thread, not as a new standalone email. Use the In-Reply-To and References headers to ensure proper threading. Send from {USER_EMAIL}.",
   "output_hint": "Return the sent message ID, thread ID, and confirmation of whether it was sent as an in-thread reply."
 }
 ```
@@ -167,7 +177,7 @@ Before composing a Pipedream thread reply, you MUST have:
 
 ```json
 {
-  "instruction": "Reply to the email with message ID 19c4959db66edd8b in thread 19c49580d479caf0, sending to cjgraves1119@gmail.com with subject 'Re: Thread testing' and body 'Testing Pipedream MCP thread reply - did this land in the same conversation?'. This must be sent as a reply within the existing email thread, not as a new standalone email. Use the In-Reply-To and References headers to ensure proper threading. Send from chrisg@stratusinfosystems.com.",
+  "instruction": "Reply to the email with message ID 19c4959db66edd8b in thread 19c49580d479caf0, sending to [your-test-email@gmail.com] with subject 'Re: Thread testing' and body 'Testing Pipedream MCP thread reply - did this land in the same conversation?'. This must be sent as a reply within the existing email thread, not as a new standalone email. Use the In-Reply-To and References headers to ensure proper threading. Send from {USER_EMAIL}.",
   "output_hint": "Return the sent message ID, thread ID, and confirmation of whether it was sent as an in-thread reply."
 }
 ```
@@ -186,7 +196,7 @@ Before composing a Pipedream thread reply, you MUST have:
 
 ```json
 {
-  "instruction": "Send a new email to [Name] at [email@example.com] with subject '[Subject Line]' and body '[Full email body with proper spacing]'. Send from chrisg@stratusinfosystems.com.",
+  "instruction": "Send a new email to [Name] at [email@example.com] with subject '[Subject Line]' and body '[Full email body with proper spacing]'. Send from {USER_EMAIL}.",
   "output_hint": "Return the sent message ID and confirmation."
 }
 ```
@@ -203,7 +213,7 @@ Zoho CRM Mail works as Tier 2 in chat mode for new outbound emails. It does NOT 
 {
   "body": {
     "data": [{
-      "from": {"user_name": "Chris Graves", "email": "chrisg@stratusinfosystems.com"},
+      "from": {"user_name": "{USER_NAME}", "email": "{USER_EMAIL}"},
       "to": [{"user_name": "[Name]", "email": "[email]"}],
       "cc": [{"user_name": "[Name]", "email": "[cc_email]"}],
       "subject": "[Subject]",
@@ -275,9 +285,9 @@ Use this skill when:
 
 ---
 
-## Chris Graves Style Guide
+## User Style Guide
 
-**Canonical source:** `references/chris-email-voice-guide.md`
+**Canonical source:** `references/user-email-voice-guide.md`
 
 Read the canonical voice guide for the full style rules. Key points enforced on every draft:
 - No em dashes. No filler openers. No AI-sounding phrases. No corporate buzzwords.
@@ -289,18 +299,18 @@ Read the canonical voice guide for the full style rules. Key points enforced on 
 ### Signature (External Emails)
 
 ```
-Chris Graves
+{USER_NAME}
 Regional Sales Director
 Stratus Information Systems
-P: (949) 328-3655
-E: chrisg@stratusinfosystems.com
+P: [Your Phone Number]
+E: {USER_EMAIL}
 ```
 
 ### Signature Toggle
 
 If user says "remove the signature", "no sig", "without signature", or similar:
 - Omit the full signature block
-- End with just "Best,\nChris" or closing line only
+- End with just "Best,\n{USER_NAME}" or closing line only
 - Still maintain all other style rules
 
 ---
@@ -370,7 +380,7 @@ Use search_gmail_messages to find the thread. Extract:
 
 ### Step 4: Compose the Draft
 
-Apply the Chris Graves style guide. Enforce mandatory line spacing rules.
+Apply the user style guide. Enforce mandatory line spacing rules.
 
 ### Step 5: MANDATORY Draft Review (Never Skip)
 
@@ -384,7 +394,7 @@ DRAFT EMAIL READY FOR REVIEW
 
 Mode:    [CHAT / COWORK]
 Path:    [Pipedream (Tier 1) / Zoho CRM Mail (Tier 2) / Gmail Compose (Tier 3) / Zapier (Tier 4)]
-From:    chrisg@stratusinfosystems.com
+From:    {USER_EMAIL}
 To:      [recipient_email]
 CC:      [if any]
 Subject: [subject_line]
@@ -451,7 +461,7 @@ Mode:    [CHAT / COWORK]
 Path:    Pipedream (Tier 1)
 
 Replying to: [Brief thread description]
-From:    chrisg@stratusinfosystems.com
+From:    {USER_EMAIL}
 To:      [extracted recipients]
 CC:      [extracted CC]
 Subject: [exact subject from thread]
@@ -473,7 +483,7 @@ Send approved emails one at a time, reporting success/failure per email with tie
 
 ---
 
-## Email Templates (Chris Graves Voice)
+## Email Templates
 
 All templates follow the style guide. Blank lines between every paragraph are mandatory.
 
@@ -495,11 +505,11 @@ To keep things moving, could you confirm a few quick details?
 Once I have that, I'll send over options right away.
 
 Best,
-Chris Graves
+{USER_NAME}
 Regional Sales Director
 Stratus Information Systems
-415-326-3661
-chrisg@stratusinfosystems.com
+[Your Phone Number]
+{USER_EMAIL}
 Sales & Logistics | Project Consulting | IT Management | Install & Config | Purchase Financing
 ```
 
@@ -521,11 +531,11 @@ Quantities and terms can be adjusted anytime. Just let me know what you'd like c
 How does everything look?
 
 Best,
-Chris Graves
+{USER_NAME}
 Regional Sales Director
 Stratus Information Systems
-415-326-3661
-chrisg@stratusinfosystems.com
+[Your Phone Number]
+{USER_EMAIL}
 Sales & Logistics | Project Consulting | IT Management | Install & Config | Purchase Financing
 ```
 
@@ -545,11 +555,11 @@ For your convenience, here are links to purchase [qty] x [license or model] when
 Let me know if you'd like to adjust the term or quantities.
 
 Best,
-Chris Graves
+{USER_NAME}
 Regional Sales Director
 Stratus Information Systems
-415-326-3661
-chrisg@stratusinfosystems.com
+[Your Phone Number]
+{USER_EMAIL}
 Sales & Logistics | Project Consulting | IT Management | Install & Config | Purchase Financing
 ```
 
@@ -567,11 +577,11 @@ For your convenience, here's the copy below so you can claim it right away.
 If you want, reply with a screenshot of what you see under Organization > Licensing and I'll confirm everything looks right.
 
 Best,
-Chris Graves
+{USER_NAME}
 Regional Sales Director
 Stratus Information Systems
-415-326-3661
-chrisg@stratusinfosystems.com
+[Your Phone Number]
+{USER_EMAIL}
 Sales & Logistics | Project Consulting | IT Management | Install & Config | Purchase Financing
 ```
 
@@ -585,11 +595,11 @@ Just following up to see if you had a chance to review the quote options.
 What has feedback been so far?
 
 Best,
-Chris Graves
+{USER_NAME}
 Regional Sales Director
 Stratus Information Systems
-415-326-3661
-chrisg@stratusinfosystems.com
+[Your Phone Number]
+{USER_EMAIL}
 Sales & Logistics | Project Consulting | IT Management | Install & Config | Purchase Financing
 ```
 
@@ -603,11 +613,11 @@ Following up to see if you had a chance to review this with your finance team.
 Do you have any updates on the approval, or is this something you'd like to move forward with?
 
 Best,
-Chris Graves
+{USER_NAME}
 Regional Sales Director
 Stratus Information Systems
-415-326-3661
-chrisg@stratusinfosystems.com
+[Your Phone Number]
+{USER_EMAIL}
 Sales & Logistics | Project Consulting | IT Management | Install & Config | Purchase Financing
 ```
 
@@ -623,11 +633,11 @@ Once completed, you'll automatically receive an invoice via email to pay online.
 Let me know once you've completed everything so I can help put it on the fast track.
 
 Best,
-Chris Graves
+{USER_NAME}
 Regional Sales Director
 Stratus Information Systems
-415-326-3661
-chrisg@stratusinfosystems.com
+[Your Phone Number]
+{USER_EMAIL}
 Sales & Logistics | Project Consulting | IT Management | Install & Config | Purchase Financing
 ```
 
@@ -641,11 +651,11 @@ I wanted to check in one more time on [project/quote]. If the timing isn't right
 Just say the word if anything changes.
 
 Best,
-Chris Graves
+{USER_NAME}
 Regional Sales Director
 Stratus Information Systems
-415-326-3661
-chrisg@stratusinfosystems.com
+[Your Phone Number]
+{USER_EMAIL}
 Sales & Logistics | Project Consulting | IT Management | Install & Config | Purchase Financing
 ```
 
@@ -767,7 +777,7 @@ Version numbers embedded in folder names follow hyphenated format (e.g., `v1-3` 
 REPLY WORKFLOW (BOTH MODES):
 [ ] Search Gmail for original thread (MANDATORY)
 [ ] Read full thread for context, subject, message ID, and recipients
-[ ] Compose reply using Chris Graves style guide
+[ ] Compose reply using user style guide
 [ ] Enforce mandatory line spacing
 [ ] Present draft with tier indicator for approval
 [ ] Send via Pipedream with threading (Tier 1) - USE "instruction" SINGULAR
@@ -775,7 +785,7 @@ REPLY WORKFLOW (BOTH MODES):
 
 NEW EMAIL WORKFLOW (BOTH MODES):
 [ ] Find CRM record if customer referenced
-[ ] Compose using Chris Graves style guide
+[ ] Compose using user style guide
 [ ] Enforce mandatory line spacing
 [ ] Present draft with "Path: Pipedream (Tier 1)" for approval
 [ ] Send via Pipedream (Tier 1) - USE "instruction" SINGULAR

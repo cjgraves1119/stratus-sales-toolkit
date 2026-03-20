@@ -5,6 +5,18 @@ description: "zoho crm with mandatory follow-up task on every new deal (quote cr
 
 # Zoho CRM v32 (Mandatory Follow-Up Task on Quote Creation)
 
+## IDENTITY RESOLUTION
+
+Before any operation involving owner-filtered records or record creation, resolve:
+
+- **USER_NAME / USER_EMAIL** — from the `<user>` block in the Claude system prompt (present in every session)
+- **ZOHO_OWNER_ID** — the current user's Zoho CRM numeric user ID. Check CLAUDE.md for `ZOHO_OWNER_ID: {id}`. If absent, call `ZohoCRM_getRecords(module="Users", type="CurrentUser")` and extract `id`. Cache it by asking the user to add `ZOHO_OWNER_ID: {id}` to CLAUDE.md.
+
+If ZOHO_OWNER_ID cannot be resolved, display a setup prompt before proceeding:
+> ⚠️ **SETUP NEEDED** — Add `ZOHO_OWNER_ID: [your Zoho user ID]` to CLAUDE.md, or run "check my setup" to auto-detect it.
+
+See `references/identity-resolution.md` for full resolution details and Stratus-wide constants.
+
 ## SKILL VERSION REFERENCES
 
 When this skill references another skill with "(latest)", always resolve to the latest version installed in `/mnt/skills/user/`. Use this pattern:
@@ -187,7 +199,7 @@ When no other open tasks exist on an active deal, create a successor BEFORE clos
     "Due_Date": "{today + 3 business days}",
     "Status": "Not Started",
     "Priority": "Normal",
-    "Owner": {"id": "2570562000141711002"},
+    "Owner": {"id": "{ZOHO_OWNER_ID}"},
     "What_Id": "{Deal_Id}",
     "$se_module": "Deals",
     "Who_Id": "{Contact_Id}",
@@ -1082,7 +1094,7 @@ Every new Deal created through the standard quote workflow MUST have a follow-up
     "Due_Date": "{today + 3 business days, skip weekends}",
     "Status": "Not Started",
     "Priority": "Normal",
-    "Owner": {"id": "2570562000141711002"},
+    "Owner": {"id": "{ZOHO_OWNER_ID}"},
     "What_Id": "{Deal_Id}",
     "$se_module": "Deals",
     "Who_Id": "{Contact_Id}",
@@ -1227,7 +1239,7 @@ Every Quote Create call MUST use this template. Omitting ANY of these fields is 
     "Billing_Code": "{zip code}",
     "Billing_Country": "US",
     "Shipping_Country": "US",
-    "Owner": {"id": "2570562000141711002"},
+    "Owner": {"id": "{ZOHO_OWNER_ID}"},
     "Quoted_Items": [
       {"Quantity": 10, "Product_Name": {"id": "{zoho_product_id}"}}
     ],
@@ -1293,7 +1305,7 @@ Every Deal Create call MUST use this template. Copy and fill in all values.
     "Closing_Date": "{YYYY-MM-DD, today + 30 days}",
     "Amount": 0,
     "Meraki_ISR": {"id": "2570562000027286729"},
-    "Owner": {"id": "2570562000141711002"}
+    "Owner": {"id": "{ZOHO_OWNER_ID}"}
   }]
 }
 ```
@@ -1629,7 +1641,7 @@ Create follow-up task on the deal (standard successor enforcement):
   "Due_Date": "{today + 3 business days}",
   "Status": "Not Started",
   "Priority": "Normal",
-  "Owner": {"id": "2570562000141711002"},
+  "Owner": {"id": "{ZOHO_OWNER_ID}"},
   "What_Id": "{Deal_Id}",
   "$se_module": "Deals",
   "Who_Id": "{Contact_Id}",
@@ -1761,7 +1773,7 @@ Example: `CCW_Import_2570562000379811039_RAE_Products.csv`
 ```
 ZohoCRM_Search_Records
 Module: Tasks
-criteria: (Status:equals:Not Started)and(Owner:equals:2570562000141711002)
+criteria: (Status:equals:Not Started)and(Owner:equals:{ZOHO_OWNER_ID})
 fields: id,Subject,Due_Date,What_Id,Who_Id,Status,Priority,Description
 per_page: 200
 ```
@@ -1855,7 +1867,7 @@ Step 4: CREATE FOLLOW-UP TASK (conditional - see rules below)
     "Subject": "Follow up - {Original Task Context}",
     "Due_Date": "{today + 3 business days}",
     "Status": "Not Started",
-    "Owner": {"id": "2570562000141711002"},
+    "Owner": {"id": "{ZOHO_OWNER_ID}"},
     "What_Id": "{deal_id}",
     "Who_Id": "{contact_id}",
     "$se_module": "Deals",
@@ -1965,7 +1977,7 @@ After closing, always verify via re-fetch (`ZohoCRM_Get_Record` with Status chec
 
 ## Quick Reference IDs
 
-**Chris Graves User ID:** `2570562000141711002`
+**Current User Zoho ID:** `{ZOHO_OWNER_ID}` — resolved at runtime from CLAUDE.md or Zoho API
 **Org ID:** `org647122552`
 **Stratus Sales ID:** `2570562000027286729`
 
