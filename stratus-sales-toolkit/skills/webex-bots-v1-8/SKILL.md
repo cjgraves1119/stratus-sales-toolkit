@@ -1,11 +1,85 @@
 ---
-name: webex-bots-v1-7
-description: "send messages to commerce bot (lead times) and stratus chatbot (pricing quotes) in stratus bot group via webex. includes batch sku queries, auto-polling, cisco rep zoho ids, direct web link fallback, chris voice replication, cowork computer-use fallback, and pipedream base64 room id corruption fix with retry logic. requires both text and markdown fields. triggers: lead time, pricing quote, webex message, ping cisco rep, message bot, chat bot, commerce bot."
+name: webex-bots-v1-8
+description: "send messages to commerce bot (lead times), stratus chatbot (pricing quotes), and velocity hub bot (deal approvals) in webex. includes batch sku queries, auto-polling, cisco rep zoho ids, direct web link fallback, chris voice replication, cowork computer-use fallback, pipedream base64 room id corruption fix with retry logic, and velocity hub deal approval submission via pipedream webhook. requires both text and markdown fields for bot group messages. triggers: lead time, pricing quote, webex message, ping cisco rep, message bot, chat bot, commerce bot, deal approval, submit deal approval, velocity hub, approve deal."
 ---
 
-# Webex Bots Skill v1.7
+# Webex Bots Skill v1.8
 
-Send messages to Cisco/Meraki bots in the Stratus Bot Group Webex room for lead times and pricing quotes. Also includes Cisco rep Zoho IDs for direct Webex messaging. All drafted messages use Chris's authentic voice.
+Send messages to Cisco/Meraki bots in the Stratus Bot Group Webex room for lead times and pricing quotes. Submit deal approval requests to Cisco's Velocity Hub bot via Pipedream webhook. Also includes Cisco rep Zoho IDs for direct Webex messaging. All drafted messages use Chris's authentic voice.
+
+## What's New in v1.8
+
+**VELOCITY HUB DEAL APPROVAL SUBMISSION** — Programmatic deal approval requests to Cisco's Velocity Hub bot via a dedicated Pipedream webhook. No browser automation or manual card interaction needed. The webhook handles the entire flow: sends "deal approval" to the bot, polls for the adaptive card, and submits it with the deal ID and country.
+
+### Velocity Hub Deal Approval Workflow
+
+When Chris requests a deal approval (phrases like "submit deal approval", "deal approval for [deal_id]", "approve deal [deal_id]", "velocity hub [deal_id]"):
+
+```
+STEP 1: Extract deal_id and country from the request
+  - deal_id: 8-digit Cisco deal ID (e.g., 12345678)
+  - country: Default "United States" unless specified otherwise
+
+STEP 2: POST to Pipedream webhook
+  URL: https://eo44ez435h7vzp2.m.pipedream.net
+  Method: POST
+  Headers: Content-Type: application/json
+  Body: {"deal_id": "12345678", "country": "United States"}
+
+STEP 3: Wait for response (~7-9 seconds typical)
+  The webhook workflow automatically:
+  a. Gets a fresh Webex OAuth token
+  b. Sends "deal approval" to Velocity Hub room
+  c. Polls for the adaptive card (300ms intervals, 15 attempts)
+  d. If no card found, falls back: sends "hello" to restart session, waits 2s, retries
+  e. Submits the card with deal_id and country
+
+STEP 4: Report result to Chris
+  - Success: "Deal approval submitted for [deal_id] ([country]). Took ~Xs."
+  - Failure: "Deal approval timed out. The Velocity Hub bot may be down."
+```
+
+### How to Send the Webhook Request
+
+Use any HTTP-capable tool. In Cowork, the simplest approach is a bash curl:
+
+```bash
+curl -s -X POST https://eo44ez435h7vzp2.m.pipedream.net \
+  -H "Content-Type: application/json" \
+  -d '{"deal_id": "12345678", "country": "United States"}'
+```
+
+The response JSON contains:
+- `success`: true/false
+- `deal_id`: the submitted deal ID
+- `country`: the submitted country
+- `elapsed`: total execution time in ms
+- `error`: error message if failed
+
+### Velocity Hub Technical Details
+
+- **Velocity Hub Room ID**: Y2lzY29zcGFyazovL3VzL1JPT00vMTkxMGQ3NTAtZDU0MS0xMWYwLWFiYjAtZDkyMjBjZWQ5YTYz
+- **Bot Email**: VelocityHub@webex.bot
+- **Card Fields**: deal_id (8-digit, regex `^[0-9]{8}$`), country (dropdown, ~150 options)
+- **Typical Timing**: ~7.5-8.5 seconds (bottleneck is Cisco's bot generating the adaptive card, ~7s)
+- **Webhook URL**: https://eo44ez435h7vzp2.m.pipedream.net
+- **Auth**: Webex OAuth integration ("Stratus Card Submitter") with auto-refreshing tokens built into the workflow
+
+### Common Deal Approval Scenarios
+
+| Scenario | deal_id Source | Country |
+|----------|---------------|---------|
+| From Zoho CRM deal | Deal_Approval_ID field or Chris provides it | Usually "United States" |
+| Chris provides directly | "submit deal approval 12345678" | Default "United States" |
+| International deal | Chris specifies | Use exact country name from request |
+
+### Deal Approval Error Handling
+
+| Error | Likely Cause | Fix |
+|-------|-------------|-----|
+| Timed out waiting for card | Velocity Hub bot session expired and fallback also failed | Retry once. If still failing, bot may be down. |
+| success: false with 403 | OAuth token refresh failed | Tokens auto-refresh, but if refresh token expired (90-day TTL), Chris needs to re-authorize the integration |
+| Invalid deal_id format | Not 8 digits | Verify the deal ID is exactly 8 numeric digits |
 
 ## What's New in v1.7
 
@@ -20,7 +94,7 @@ RETRY STRATEGY (max 2 retries):
 1. First attempt: Send normally with room ID in instruction
 2. If "resource not found" error:
    a. Re-send with explicit character emphasis in the instruction:
-      "IMPORTANT: The roomId contains 'MDAt' (capital M, capital D, capital A, lowercase t). 
+      "IMPORTANT: The roomId contains 'MDAt' (capital M, capital D, capital A, lowercase t).
        Do NOT change any characters. Copy the roomId exactly."
    b. This forces Pipedream to preserve the exact base64 encoding
 3. If second attempt also fails:
@@ -36,7 +110,7 @@ VERIFICATION PATH (MANDATORY):
 1. Send message via Pipedream cisco_webex-create-message
 2. Poll directly via Pipedream cisco_webex-list-messages (no wait needed, bot responds in ~2s)
 3. Check for bot response from ccwbot@webex.bot or stratus.chatbot@webex.bot
-4. If response is "SKU Lead Time Card" (adaptive card), note that card content 
+4. If response is "SKU Lead Time Card" (adaptive card), note that card content
    is not readable via API. Inform user the bot responded and link to Webex room.
 
 NEVER DO:
@@ -97,7 +171,7 @@ When in Cowork mode and Webex MCP messaging encounters errors:
 
 ## Room Configuration
 
-**Room Name**: Stratus Bot Group  
+**Room Name**: Stratus Bot Group
 **Room ID**: Y2lzY29zcGFyazovL3VzL1JPT00vNjBiZWVmMDAtZDYzMi0xMWYwLThmYmMtZWRhMTE1OTNjY2Vh
 
 Always use the Room ID for faster message delivery.
@@ -185,6 +259,15 @@ lead time of MR44-HW,MS130-12X-HW,MS150-48LP-4G
 - Individual SKU prices (hardware + licenses)
 - Total price
 - Direct order URL (stratusinfosystems.com/order/...)
+
+### Velocity Hub BOT (Deal Approvals)
+
+**• Email**: VelocityHub@webex.bot
+**• Purpose**: Submit Cisco deal approval requests programmatically
+**• Room ID**: Y2lzY29zcGFyazovL3VzL1JPT00vMTkxMGQ3NTAtZDU0MS0xMWYwLWFiYjAtZDkyMjBjZWQ5YTYz (separate from Stratus Bot Group)
+**• Interaction**: Via Pipedream webhook only (not direct Webex MCP messaging)
+**• Webhook**: https://eo44ez435h7vzp2.m.pipedream.net
+**• See**: "Velocity Hub Deal Approval Workflow" section above for full details
 
 ## Cisco Rep Direct Messaging (55 Active Reps)
 
@@ -378,10 +461,11 @@ If no bot response appears after 10 seconds:
 - **Including license SKUs in lead time queries**: Only hardware SKUs work for lead times
 - **Using browser/computer-use to verify sends**: Always poll via MCP list-messages, never browser
 - **Giving up after first "resource not found"**: Retry with character emphasis before falling back to web link
+- **Sending deal approval via Webex MCP directly**: Use the Pipedream webhook, not direct Webex messaging to Velocity Hub room
 
 ## Chris Voice Guide (Apply to ALL Drafted Webex Messages)
 
-**NOTE:** This section applies when drafting messages TO people (Cisco reps, partners, team, customers). Bot commands (lead times, pricing queries) are mechanical and do NOT get voice styling.
+**NOTE:** This section applies when drafting messages TO people (Cisco reps, partners, team, customers). Bot commands (lead times, pricing queries, deal approvals) are mechanical and do NOT get voice styling.
 
 For the full detailed reference with conversation flow examples, see `references/chris-voice-guide.md`.
 
@@ -464,10 +548,21 @@ Use this skill when user asks for:
 - Quick quote for Zoho CRM integration
 - Commerce bot or CCW bot queries
 - Direct Webex message to a Cisco rep
+- Deal approval submission (Velocity Hub)
+- Submit deal approval for a Cisco deal ID
 
 ## Changelog
 
-### v1.7 (Current)
+### v1.8 (Current)
+
+**- NEW**: Velocity Hub deal approval submission via Pipedream webhook (https://eo44ez435h7vzp2.m.pipedream.net)
+**- NEW**: Automated deal approval workflow: POST deal_id + country, webhook handles bot interaction, card polling, and submission
+**- NEW**: Velocity Hub bot details (room ID, bot email, card fields, timing expectations)
+**- NEW**: Deal approval error handling table and common scenarios
+**- NEW**: Trigger phrases for deal approval ("deal approval", "submit deal approval", "approve deal", "velocity hub")
+**- INCLUDES**: All v1.7 features (Pipedream base64 fix, MCP-only verification, Cowork fallback, Chris Voice Guide, web link fallback, batch queries, rep cache)
+
+### v1.7
 
 **- FIX**: Pipedream base64 room ID corruption on create-message (MDAt → MGAt). Retry with character emphasis resolves it.
 **- NEW**: Post-send verification is MCP-only. Never use computer use or browser tools to verify Webex sends.

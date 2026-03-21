@@ -15,7 +15,7 @@ Sales operations plugin for Stratus Information Systems. Covers the full Cisco/M
 | **subscription-modification-v2-6** | Cisco subscription add-on and modification quote processing |
 | **ccw-subscription-renewal-v1-2** | CCW subscription renewal workflow with browser automation |
 | **coterm-calculator-v1-0** | Meraki co-term expiration date calculator (weighted dollar-value method) |
-| **webex-bots-v1-7** | Commerce Bot (lead times) and Stratus Chatbot (pricing) via Webex |
+| **webex-bots-v1-8** | Commerce Bot (lead times), Stratus Chatbot (pricing), and Velocity Hub (deal approvals) via Webex |
 | **weborder-to-deal-automation-v1-1** | Closed-won deal creation from Cisco/Meraki weborders |
 | **erate-proposal-workflow-v1-3** | E-Rate Form 470 competitive bid workflow with zero-credit Python requests USAC SODA API, dynamic funding year calculation, pre-scan filters (state/days/score), automated weekly bid scanner with fit-scoring, Excel export with hyperlinked RFP links, and SLED optimization recommendations |
 | **pharos-iq-automation** | PharosIQ lead-to-deal conversion with Zoho CRM |
@@ -51,5 +51,6 @@ Skills activate on natural language triggers. Examples:
 - "Send fu30 emails" → fu30-followup-automation
 - "Renew subscription" → ccw-subscription-renewal
 - "Lead time on MS425-32" → webex-bots (Commerce Bot)
+- "Submit deal approval 12345678" → webex-bots (Velocity Hub)
 - "Process this sub mod file" → subscription-modification
 - "/UpdateSkills" or "download skills" → skill-downloader
