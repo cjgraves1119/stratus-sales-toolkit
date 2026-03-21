@@ -117,6 +117,28 @@ Prefer imperative form. Explain the **why** behind instructions rather than heav
 
 Make descriptions "pushy" to combat undertriggering. Include both what the skill does AND specific contexts for when to use it, including edge cases and adjacent domains.
 
+#### User-Data Portability Rule
+
+Skills must NEVER hardcode user-specific information (names, emails, company names, Zoho IDs, API keys, webhook URLs, account identifiers, etc.). This keeps skills portable and reusable across users and sessions.
+
+Instead, skills should source user-specific data at runtime using this priority:
+
+```
+1. CLAUDE.md (working memory)    → Check first for cached user context
+2. System prompt / <user> block  → Name, email, org details
+3. User preferences              → Communication style, routing, defaults
+4. Prompt the user               → If none of the above contain the needed value, ask
+```
+
+**What this means in practice:**
+
+- Reference data by role or function, not by literal value. Example: "the user's Zoho owner ID" not "2570562000141711002"
+- When a skill needs a webhook URL, API key, or account ID, include a placeholder with instructions to resolve it from memory or prompt: `Read webhook URL from CLAUDE.md (DEAL_APPROVAL_WEBHOOK: ...) or ask the user.`
+- Companion skills that supply user context (like cisco-rep-locator for rep data) should be referenced by name, not by embedding their data
+- Descriptions and trigger phrases should be generic enough to work for any user
+
+**Exception:** Shared infrastructure that is NOT user-specific (Cisco API endpoints, standard Webex bot formats, SKU suffix rules, etc.) can be embedded directly since it applies to all users of the skill.
+
 ---
 
 ## PHASE 3: EVAL & BENCHMARK
@@ -298,7 +320,7 @@ When a skill is a member of the stratus-sales-toolkit plugin (see list below), a
 - stratus-quote-pdf-v2-0
 - stratus-quoting-bot-v4-6
 - subscription-modification-v2-6
-- webex-bots-v1-7
+- webex-bots-v1-8
 - weborder-to-deal-automation-v1-1
 - zoho-crm-email-v3-5
 - zoho-crm-v30
