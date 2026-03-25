@@ -1,6 +1,38 @@
 # Zoho CRM Changelog
 
-### v30 (Current)
+### v34 (Current)
+
+- **STRATUS PRICING DEFAULT**: All quotes now priced at Stratus ecomm rates by default — no longer "explicit request only." Primary source is WooProducts `Stratus_Price` field (live, authoritative, no rounding needed). Fallback to prices.json `price` field for SKUs not in WooProducts. Discounts applied inline at quote creation time (no separate update step)
+- **WOOPRODUCTS BATCH LOOKUP**: OR-criteria batch search for all SKUs in a single call (max 10/call). Post-filters bundle records (`WooProduct_Code` contains `+`) and deduplicates. Confirmed via live testing that Zoho's `equals`, `word`, and `starts_with` operators all behave as contains matches on this field — post-filter is the only reliable approach
+- **INLINE DISCOUNT AT CREATION**: `Discount` (dollar amount) and `Description` ("Stratus price $X/unit (Y% off list)") included directly in the CREATE payload. Eliminates the separate Phase B update call for new quotes
+- **PHASE B SIMPLIFIED**: Send Quote Phase B now references STRATUS PRICING DEFAULT section instead of its own prices.json-only logic. Phase B is only needed to update pre-existing list-price quotes
+- **1% ROUNDING REMOVED**: WooProducts `Stratus_Price` is the exact live price — no staleness buffer needed
+- **"ONLY INCLUDE WHEN EXPLICITLY REQUESTED" UPDATED**: Removed Discount and Description from that table — they are now always applied
+- All v33 features retained
+
+### v33
+
+- **AUTO VELOCITY HUB DEAL APPROVAL**: After `LIVE_CiscoQuote_Deal` successfully generates a CCW Deal Number (DID), Claude automatically submits it to Cisco's Velocity Hub for deal approval via Pipedream webhook (`https://eo44ez435h7vzp2.m.pipedream.net`). Non-blocking: if submission fails, workflow continues and user can retry manually
+- **BOTH FLOWS COVERED**: Auto-submit integrated into both the standard Quote-to-PO flow and the Ecomm-to-PO flow
+- **DID VALIDATION**: Only submits if CCW_Deal_Number matches `^[0-9]{8}$` (exactly 8 digits). Skips with warning if format is unexpected
+- **UPDATED REP PROMPT**: Post-DID prompt now says "Deal ID generated and submitted for approval" instead of just "Deal ID generated"
+- **2 NEW NEVER DO RULES**: Don't block workflow on Velocity Hub failure; don't submit without validating 8-digit format
+- All v32 features retained
+
+### v32
+
+- **MANDATORY FOLLOW-UP TASK ON QUOTE CREATION**: Every new Deal created via standard quote workflow MUST have a follow-up task as the final step
+- All v31 features retained
+
+### v31
+
+- **ENFORCED COMPLETE PAYLOAD TEMPLATES**: COMPLETE DEAL/QUOTE CREATION PAYLOAD templates mandatory for every create call
+- **BILLING ADDRESS MANDATORY**: Street, City, 2-letter State, Code, Country required on every Quote
+- **Valid_Till, Cisco_Billing_Term, Shipping_Country MANDATORY** on every Quote
+- **Closing_Date MANDATORY** on every Deal
+- All v30 features retained
+
+### v30
 
 - **HOT CACHE REMOVED**: Eliminated `hot-cache.json` entirely. All product ID lookups now use live batch Zoho Products search via `(Product_Code:equals:SKU1)OR(Product_Code:equals:SKU2)...` (max 10 per call). Eliminates stale ID issues that caused "inactive product" errors on MX67-SEC, MX85-SEC, and other frequently-updated license SKUs
 - **MASTER QUOTE WORKFLOW**: For multi-variant quotes (customer wants 1Y + 3Y options), create a single Master Quote containing ALL SKUs across all terms, submit for DID via LIVE_CiscoQuote_Deal, then create separate term-specific quotes with the DID passed through. Master Quote naming: `{Account} - {Description} (Master)`. Avoids submitting multiple CCW deals for the same opportunity

@@ -1,21 +1,62 @@
 ---
-name: zoho-crm-v32
-description: "zoho crm with mandatory follow-up task on every new deal (quote creation path), enforced complete payload templates for deal and quote creation (billing address, valid_till, cisco_billing_term, shipping_country, closing_date all mandatory in payload), live batch sku lookup only, master quote workflow, send-quote-to-customer pipeline, ecomm discount prompt, gmail thread read pre-step, live_sendtoesign sales_orders fix, delinquency gate, 1% ecomm rounding, and ccw approval shortcut. triggers: create quote, send quote, send quote to customer, new deal, update deal, close task, task review, daily tasks, task clean up, help me complete todays tasks, close out my tasks, what tasks are due, review my tasks, submit to ccw, admin action, clone quote, cancel po, generate po and send. org id: org647122552."
+name: zoho-crm-v34
+description: "zoho crm with stratus ecomm pricing applied by default on all quotes (wooproducts stratus_price as primary source, prices.json fallback, inline discount at creation), auto velocity hub deal approval after did generation, mandatory follow-up task on every new deal (quote creation path), enforced complete payload templates for deal and quote creation (billing address, valid_till, cisco_billing_term, shipping_country, closing_date all mandatory in payload), live batch sku lookup only, master quote workflow, send-quote-to-customer pipeline, gmail thread read pre-step, live_sendtoesign sales_orders fix, delinquency gate, and ccw approval shortcut. triggers: create quote, send quote, send quote to customer, new deal, update deal, close task, task review, daily tasks, task clean up, help me complete todays tasks, close out my tasks, what tasks are due, review my tasks, submit to ccw, admin action, clone quote, cancel po, generate po and send, deal approval, apply ecomm pricing, apply stratus pricing, update quote pricing. org id: org647122552."
 ---
 
-# Zoho CRM v32 (Mandatory Follow-Up Task on Quote Creation)
+# Zoho CRM v34 (Stratus Ecomm Pricing Default)
 
-## IDENTITY RESOLUTION
+## AUTO VELOCITY HUB DEAL APPROVAL (NEW IN V33)
 
-Before any operation involving owner-filtered records or record creation, resolve:
+### Overview
 
-- **USER_NAME / USER_EMAIL** — from the `<user>` block in the Claude system prompt (present in every session)
-- **ZOHO_OWNER_ID** — the current user's Zoho CRM numeric user ID. Check CLAUDE.md for `ZOHO_OWNER_ID: {id}`. If absent, call `ZohoCRM_getRecords(module="Users", type="CurrentUser")` and extract `id`. Cache it by asking the user to add `ZOHO_OWNER_ID: {id}` to CLAUDE.md.
+After `LIVE_CiscoQuote_Deal` successfully generates a CCW Deal Number (DID), Claude automatically submits it to Cisco's Velocity Hub for deal approval via a Pipedream webhook. No manual step required.
 
-If ZOHO_OWNER_ID cannot be resolved, display a setup prompt before proceeding:
-> ⚠️ **SETUP NEEDED** — Add `ZOHO_OWNER_ID: [your Zoho user ID]` to CLAUDE.md, or run "check my setup" to auto-detect it.
+### When This Triggers
 
-See `references/identity-resolution.md` for full resolution details and Stratus-wide constants.
+This step fires automatically whenever ALL of the following are true:
+1. `LIVE_CiscoQuote_Deal` admin action completed successfully
+2. `CCW_Deal_Number` field is populated on the Quote (re-fetch to confirm)
+3. The DID is exactly 8 numeric digits
+
+### Workflow
+
+```
+AFTER LIVE_CiscoQuote_Deal succeeds and CCW_Deal_Number is confirmed populated:
+
+1. EXTRACT DID: Re-fetch Quote → read CCW_Deal_Number field
+2. VALIDATE: Confirm DID matches ^[0-9]{8}$ (exactly 8 digits)
+3. SUBMIT: POST to Velocity Hub webhook
+   URL: https://eo44ez435h7vzp2.m.pipedream.net
+   Method: POST
+   Headers: Content-Type: application/json
+   Body: {"deal_id": "<DID>", "country": "United States"}
+   (Use country from request context if international, default "United States")
+4. REPORT: Parse response JSON
+   - success: true → "Deal approval submitted for <DID>. Took ~Xs."
+   - success: false → "Deal approval submission failed: <error>. You can retry manually."
+5. CONTINUE: Proceed with next admin action step (rep lookup prompt, LIVE_GetQuoteData, etc.)
+```
+
+### Implementation (bash curl)
+
+```bash
+curl -s -X POST https://eo44ez435h7vzp2.m.pipedream.net \
+  -H "Content-Type: application/json" \
+  -d '{"deal_id": "<DID>", "country": "United States"}'
+```
+
+### Error Handling
+
+| Scenario | Action |
+|----------|--------|
+| DID not 8 digits | Skip auto-submit, warn user, continue workflow |
+| Webhook returns success: false | Report error, continue workflow (non-blocking) |
+| Webhook timeout / network error | Report failure, continue workflow (non-blocking) |
+| International deal | Use country name from request context instead of "United States" |
+
+### Key Rule
+
+Velocity Hub submission is **non-blocking**. If it fails, report the failure but do NOT halt the quote workflow. Chris can always submit manually via "submit deal approval <DID>" later.
 
 ## SKILL VERSION REFERENCES
 
@@ -199,7 +240,7 @@ When no other open tasks exist on an active deal, create a successor BEFORE clos
     "Due_Date": "{today + 3 business days}",
     "Status": "Not Started",
     "Priority": "Normal",
-    "Owner": {"id": "{ZOHO_OWNER_ID}"},
+    "Owner": {"id": "2570562000141711002"},
     "What_Id": "{Deal_Id}",
     "$se_module": "Deals",
     "Who_Id": "{Contact_Id}",
@@ -740,7 +781,9 @@ Body: {"data": [{"id": "{quote_id}", "Admin_Action": "LIVE_CiscoQuote_Deal"}]}
 - `Cisco_Quote_Status` field updates to Approved/Pending
 
 **After Completion:**
-- If Meraki_ISR = "Stratus Sales", prompt: "Deal ID generated. Want me to look up the Cisco rep from the approval email?"
+- Re-fetch Quote to confirm `CCW_Deal_Number` is populated
+- **AUTO-SUBMIT TO VELOCITY HUB (v33):** If DID is 8 digits, POST to webhook (see AUTO VELOCITY HUB DEAL APPROVAL section). This is non-blocking; continue workflow regardless of result.
+- If Meraki_ISR = "Stratus Sales", prompt: "Deal ID generated and submitted for approval. Want me to look up the Cisco rep from the approval email?"
 
 ### Step 2: LIVE_GetQuoteData (Get Disti Pricing)
 
@@ -813,6 +856,7 @@ TYPICAL QUOTE-TO-PO FLOW:
 
 1. Create Quote in Zoho (this skill)
 2. Run LIVE_CiscoQuote_Deal → Gets Deal ID, submits for approval
+   → AUTO: Velocity Hub deal approval submitted via webhook (v33)
 3. Wait for Cisco approval (check email or CCW portal)
 4. Run LIVE_GetQuoteData → Pulls disti pricing into Vendor_Lines
 5. Apply margin (use margin-update workflow if needed)
@@ -852,6 +896,7 @@ ECOMM-TO-PO FLOW:
 1. Match Quote line items exactly to ecomm cart prices (apply same discounts)
 2. Set Net_Terms on Quote BEFORE conversion (customer's requested terms)
 3. Run LIVE_CiscoQuote_Deal → Get Deal ID (REQUIRED)
+   → AUTO: Velocity Hub deal approval submitted via webhook (v33)
 4. Run LIVE_GetQuoteData → Pull disti pricing (OPTIONAL - empty results OK)
 5. Run LIVE_ConvertQuoteToSO → Create PO
 6. Run LIVE_SendToEsign → Send contract to customer
@@ -1094,7 +1139,7 @@ Every new Deal created through the standard quote workflow MUST have a follow-up
     "Due_Date": "{today + 3 business days, skip weekends}",
     "Status": "Not Started",
     "Priority": "Normal",
-    "Owner": {"id": "{ZOHO_OWNER_ID}"},
+    "Owner": {"id": "2570562000141711002"},
     "What_Id": "{Deal_Id}",
     "$se_module": "Deals",
     "Who_Id": "{Contact_Id}",
@@ -1239,7 +1284,7 @@ Every Quote Create call MUST use this template. Omitting ANY of these fields is 
     "Billing_Code": "{zip code}",
     "Billing_Country": "US",
     "Shipping_Country": "US",
-    "Owner": {"id": "{ZOHO_OWNER_ID}"},
+    "Owner": {"id": "2570562000141711002"},
     "Quoted_Items": [
       {"Quantity": 10, "Product_Name": {"id": "{zoho_product_id}"}}
     ],
@@ -1250,7 +1295,108 @@ Every Quote Create call MUST use this template. Omitting ANY of these fields is 
 
 **If billing address is unknown:** Trigger ADDRESS LOOKUP SEQUENCE (check Account → Gmail signature → web search) BEFORE creating the Quote. Never create a Quote with missing address fields.
 
-**If ecomm discount requested:** Add `Discount` (dollar amount) and `Description` (discount note) to each line item per the formula above.
+Pricing is applied by default — include `Discount` and `Description` per the STRATUS PRICING DEFAULT section below.
+
+## STRATUS PRICING DEFAULT (NEW IN V34)
+
+### Rule
+
+Every Zoho CRM quote is priced at Stratus ecomm rates by default. Never create or leave a quote at list price. Discounts are applied inline at creation time — no separate update step needed.
+
+### Why
+
+Stratus publishes ecomm prices on the website. The WooProducts module in Zoho CRM stores the authoritative `Stratus_Price` for every individual SKU. Quoting at list price creates quotes that don't match what customers see online and require manual correction before sending.
+
+### Price Source Hierarchy
+
+| Priority | Source | Field | Notes |
+|----------|--------|-------|-------|
+| 1 (Primary) | WooProducts module (Zoho CRM) | `Stratus_Price` | Live, authoritative — use as-is, no rounding needed |
+| 2 (Fallback) | prices.json (stratus-quoting-bot skill) | `price` | Use if WooProducts returns null/0 for a SKU |
+| 3 (No price found) | List price (no discount) | — | Create at list, flag in description for manual review |
+
+### Step 1: WooProducts Batch Lookup
+
+Look up all SKUs in a single OR-criteria call (max 10 per call — make multiple calls for larger quotes):
+
+```
+ZohoCRM_searchRecords
+module: WooProducts
+criteria: (WooProduct_Code:equals:SKU1)OR(WooProduct_Code:equals:SKU2)OR...
+fields: WooProduct_Code,Stratus_Price
+```
+
+**Critical:** Zoho's `equals` on `WooProduct_Code` behaves as a contains match. It returns bundle records like `MX105-HW + LIC-MX105-ENT-1Y` alongside the individual `MX105-HW`. After fetching, filter out bundles and deduplicate:
+
+```python
+price_map = {}
+for record in results:
+    code = record['WooProduct_Code']
+    stratus_price = record.get('Stratus_Price')
+    # Skip bundles (contain '+') and nulls; take first match per SKU
+    if '+' not in code and stratus_price and code not in price_map:
+        price_map[code] = stratus_price
+```
+
+### Step 2: Fallback to prices.json
+
+For any SKU where WooProducts returns no match or `Stratus_Price` is null/0:
+
+```python
+import json, glob
+price_files = sorted(glob.glob('/mnt/skills/user/stratus-quoting-bot-v*/prices.json'))
+if price_files:
+    cache = json.load(open(price_files[-1]))['prices']
+    fallback = cache.get(sku, {}).get('price')  # ecomm price field
+    if fallback:
+        price_map[sku] = fallback
+```
+
+If still not found after both sources, create at list price and set Description: `"Stratus price not found — verify before sending."`
+
+### Step 3: Calculate Discount (Dollar Amount)
+
+`Discount` in Zoho is a **dollar amount per line**, not a percentage.
+
+```
+Discount = (List_Price - Stratus_Price) × Quantity
+```
+
+`List_Price` comes from the Zoho Products record (auto-populated by Zoho). For inline creation, derive from the quote context or from prices.json `list` field.
+
+Example:
+```
+MR57-HW: List $3,418.38 | Stratus $2,299 | Qty 7
+Discount = (3,418.38 - 2,299) × 7 = $7,835.66
+Discount % = round((3,418.38 - 2,299) / 3,418.38 × 100) = 33%
+```
+
+### Step 4: Include Inline at Creation
+
+Include `Discount` and `Description` directly in the CREATE payload — no separate update needed:
+
+```json
+{
+  "Quoted_Items": [
+    {
+      "Quantity": 7,
+      "Discount": 7835.66,
+      "Description": "Stratus price $2,299/unit (33% off list)",
+      "Product_Name": {"id": "{zoho_product_id}"}
+    }
+  ]
+}
+```
+
+Description format: `"Stratus price ${stratus_price}/unit (X% off list)"`
+
+### When to Skip the Pricing Default
+
+| Scenario | Action |
+|----------|--------|
+| User explicitly says "list price" or "no discount" | Skip — create at list |
+| Subscription modification quotes | Handled by subscription-modification skill |
+| SKU has `Stratus_Price = 0` or null in both sources | Create at list, flag in description |
 
 Zoho will automatically fill in:
 - List_Price (from product record)
@@ -1274,8 +1420,8 @@ Zoho will automatically fill in:
 |-------|-----------------|
 | List_Price | User says "override list price" or "custom pricing" |
 | Tax | User says "modify tax" or "tax exempt" |
-| Discount | User wants discount applied (calculate $ amount) |
-| Description | User wants discount % shown on line item |
+
+Note: `Discount` and `Description` are now always applied by default via the STRATUS PRICING DEFAULT section. They are no longer "explicit request only" fields.
 
 ## REQUIRED FIELDS (MUST ENFORCE)
 
@@ -1305,7 +1451,7 @@ Every Deal Create call MUST use this template. Copy and fill in all values.
     "Closing_Date": "{YYYY-MM-DD, today + 30 days}",
     "Amount": 0,
     "Meraki_ISR": {"id": "2570562000027286729"},
-    "Owner": {"id": "{ZOHO_OWNER_ID}"}
+    "Owner": {"id": "2570562000141711002"}
   }]
 }
 ```
@@ -1462,7 +1608,7 @@ IF Lead_Source = "Stratus Referal", "VDC", or "Website":
 |-------------|----------------------|
 | Deal + Quote + Notes + Task | Full pipeline: Deal → Quote → Ecomm Pricing → CCW → PO → E-Sign → Email → CCW Approval |
 | Stops after CRM setup | Sends contract to customer end-to-end |
-| Prompts for ecomm discount (optional) | Applies ecomm discount by default |
+| Stratus pricing applied by default (v34) | Stratus pricing applied by default — Phase B only needed to update pre-existing list-price quotes |
 
 ### Prerequisites
 - Customer name, contact email, and account must be identifiable
@@ -1482,22 +1628,16 @@ Follow the standard "Create Quote" workflow from zoho-crm skill. **Use the COMPL
 7. Add Deal Note, Quote Note
 
 #### PHASE B — Apply Ecomm Pricing (Default for Send Quote)
-1. Look up each SKU in latest stratus-quoting-bot prices.json
-   ```python
-   import json, math, glob
-   prices = json.load(open(sorted(glob.glob('/mnt/skills/user/stratus-quoting-bot-v*/prices.json'))[-1]))
-   sku_data = prices['prices'].get('SKU-NAME')
-   ecomm_price = sku_data['price']  # Already discounted ecomm price
-   ```
-2. Apply 1% rounding reduction: `adjusted_price = math.floor(ecomm_price * 0.99)`
-3. Calculate discount (dollar amount): `Discount = (List_Price × Qty) - (adjusted_price × Qty)`
-4. Update Quoted_Items:
-   ```json
-   {"id": "{line_item_id}", "Quantity": 30, "Discount": 4234.50,
-    "Description": "43% ecomm discount applied ($189/unit)",
-    "Product_Name": {"id": "{product_zoho_id}"}}
-   ```
-5. Re-fetch quote to verify Grand_Total matches expected ecomm total
+
+Follow the STRATUS PRICING DEFAULT section exactly:
+1. Batch WooProducts lookup for all SKUs on the quote (OR-criteria, max 10/call)
+2. Filter out bundle records (`+` in WooProduct_Code), extract `Stratus_Price`
+3. Fallback to prices.json for any SKU not found in WooProducts
+4. Calculate: `Discount = (List_Price - Stratus_Price) × Qty`
+5. Update Quoted_Items with Discount + Description per STRATUS PRICING DEFAULT format
+6. Re-fetch quote to verify Grand_Total matches expected ecomm total
+
+Note: Pricing is already applied inline during Phase A quote creation (v34 default). Phase B is only needed when updating an existing quote that was created at list price.
 
 #### PHASE C — Generate Deal ID (CCW)
 1. Set Admin_Action = "LIVE_CiscoQuote_Deal" on Quote
@@ -1641,7 +1781,7 @@ Create follow-up task on the deal (standard successor enforcement):
   "Due_Date": "{today + 3 business days}",
   "Status": "Not Started",
   "Priority": "Normal",
-  "Owner": {"id": "{ZOHO_OWNER_ID}"},
+  "Owner": {"id": "2570562000141711002"},
   "What_Id": "{Deal_Id}",
   "$se_module": "Deals",
   "Who_Id": "{Contact_Id}",
@@ -1773,7 +1913,7 @@ Example: `CCW_Import_2570562000379811039_RAE_Products.csv`
 ```
 ZohoCRM_Search_Records
 Module: Tasks
-criteria: (Status:equals:Not Started)and(Owner:equals:{ZOHO_OWNER_ID})
+criteria: (Status:equals:Not Started)and(Owner:equals:2570562000141711002)
 fields: id,Subject,Due_Date,What_Id,Who_Id,Status,Priority,Description
 per_page: 200
 ```
@@ -1867,7 +2007,7 @@ Step 4: CREATE FOLLOW-UP TASK (conditional - see rules below)
     "Subject": "Follow up - {Original Task Context}",
     "Due_Date": "{today + 3 business days}",
     "Status": "Not Started",
-    "Owner": {"id": "{ZOHO_OWNER_ID}"},
+    "Owner": {"id": "2570562000141711002"},
     "What_Id": "{deal_id}",
     "Who_Id": "{contact_id}",
     "$se_module": "Deals",
@@ -1977,7 +2117,7 @@ After closing, always verify via re-fetch (`ZohoCRM_Get_Record` with Status chec
 
 ## Quick Reference IDs
 
-**Current User Zoho ID:** `{ZOHO_OWNER_ID}` — resolved at runtime from CLAUDE.md or Zoho API
+**Chris Graves User ID:** `2570562000141711002`
 **Org ID:** `org647122552`
 **Stratus Sales ID:** `2570562000027286729`
 
@@ -2121,6 +2261,7 @@ ALWAYS DO:
 ✓ Apply 1% reduction to ecomm prices before calculating discount (floor(price * 0.99))
 ✓ Read Gmail thread before quoting when email is referenced in the request
 ✓ When triggering CCW approval shortcut, pass Deal ID in the prompt message
+✓ Auto-submit DID to Velocity Hub webhook after successful LIVE_CiscoQuote_Deal (non-blocking) (v33)
 
 NEVER DO:
 ✗ Create a Quote without billing address fields (Street, City, State, Code, Country) (v31)
@@ -2161,6 +2302,8 @@ NEVER DO:
 ✗ Leave Net_Terms as Net 15 when Delinquency_Score is non-green (must switch to Cash)
 ✗ Use raw ecomm prices from cache without 1% rounding adjustment
 ✗ Skip Gmail thread read when request references an email conversation
+✗ Block the quote workflow if Velocity Hub submission fails (it's non-blocking) (v33)
+✗ Submit to Velocity Hub without first confirming CCW_Deal_Number is exactly 8 digits (v33)
 ✗ Complete a "Create Quote" workflow on a new deal without creating a follow-up task (v32)
 ```
 
