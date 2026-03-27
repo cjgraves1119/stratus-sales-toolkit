@@ -578,7 +578,15 @@ If Zoho returns an error about invalid picklist value:
 3. For Stage: run ZohoCRM_Get_Field live lookup and show user the actual options
 4. If no match, prompt user: "The stage '{value}' isn't a valid Zoho option. Here are the current options: [live list]"
 
-## What's New in v32
+## What's New in v34 (Send Quote UX Improvements)
+
+- **PROCEED-FIRST MODE**: Send Quote to Customer pipeline now skips the pre-creation validation gate for existing accounts with billing address on file. Shows an inline assumption summary and proceeds immediately — no confirmation required unless a genuine blocker exists (missing contact, missing address, unknown SKU family)
+- **EXPANDED TRIGGER PHRASES**: "send to [name]", "send [name] a quote", "send the contract to [name]", "get this over to [name]" all now route to the full send-quote pipeline. If a quote already exists in context, Phase A is skipped entirely — start at Phase C
+- **SKU FAMILY DEFAULTS**: When a SKU family is referenced without variant suffix (e.g. "CW9172"), apply the most common variant (CW9172I-RTG for indoor), note the assumption in the summary, and proceed. Never stop to ask for variant clarification on a known family
+- **NET_TERMS SMART DEFAULT**: Before Phase D, resolve Net_Terms automatically: check Account Preferred_Net_Terms field → default Cash if Grand_Total < $5K → default Net 15 if ≥$5K → override to Cash if Delinquency non-green. Only prompt on large deals where Net 15 was defaulted
+- **QUOTED_ITEMS _delete METHOD**: Use `{"id": "...", "_delete": null}` in Quoted_Items array to remove specific line items. Zoho update is additive — never assume it replaces existing lines
+
+## What's New in v33
 - **MANDATORY FOLLOW-UP TASK ON QUOTE CREATION**: New standalone section "FOLLOW-UP TASK ON NEW DEALS" placed directly in the quote creation workflow path. Every new Deal created via the standard quote workflow now requires a follow-up task as the final step before reporting completion. Previously, this rule existed in the PRE-CLOSE DEAL VALIDATION section (v27) but was only read during task closure, not quote creation
 - **ALWAYS DO updated**: Added "Create follow-up task on EVERY new Deal created via standard quote workflow, not just send-quote pipeline"
 - **NEVER DO updated**: Added "Complete a 'Create Quote' workflow on a new deal without creating a follow-up task"
@@ -1265,6 +1273,69 @@ If EOL: Ask if renewal (use original license) or new deployment (recommend repla
 **v28 CRITICAL**: `Discount` is a **dollar amount**, not a percentage. Formula: `Discount = (List_Price × Quantity) - Target_Sell_Price`
 Example: List $201, target $138, Qty 1 → `Discount: 63`
 
+### DELETING / REMOVING QUOTED_ITEMS (CRITICAL — v34)
+
+**Zoho's Quoted_Items update behavior is ADDITIVE, not a replacement.** When you include `Quoted_Items` in an update payload, Zoho adds the items to the existing list. Including existing line item IDs in the array does NOT remove other lines — it creates duplicates.
+
+#### How to Delete Specific Line Items
+
+To remove specific line items from a Quote (or any inventory module), include the line item IDs with `"_delete": null` in the `Quoted_Items` array:
+
+```json
+{
+  "data": [{
+    "id": "{quote_id}",
+    "Quoted_Items": [
+      {"id": "{line_item_id_to_delete}", "_delete": null},
+      {"id": "{another_line_item_id}", "_delete": null}
+    ]
+  }]
+}
+```
+
+**Example — Remove 3 duplicate lines from a quote:**
+```json
+ZohoCRM_updateRecords
+Module: Quotes
+Body: {
+  "data": [{
+    "id": "2570562000394459057",
+    "Quoted_Items": [
+      {"id": "2570562000394422092", "_delete": null},
+      {"id": "2570562000394422093", "_delete": null},
+      {"id": "2570562000394422094", "_delete": null}
+    ]
+  }]
+}
+```
+
+#### Workflow for Removing Duplicates
+
+```
+1. FETCH quote to get full Quoted_Items list
+2. IDENTIFY duplicates by comparing:
+   - Same Product_Code + same Quantity = likely duplicate
+   - Created_Time: later items are usually the duplicates
+   - Sequence_Number: higher numbers added later
+3. COLLECT the IDs of line items to remove
+4. UPDATE with _delete: null for each ID to remove
+5. RE-FETCH to verify correct items remain and totals are accurate
+```
+
+#### Key Rules
+
+| Scenario | Method |
+|----------|--------|
+| Remove specific line items | `{"id": "...", "_delete": null}` in Quoted_Items array |
+| Replace ALL line items | Delete all existing, then update with new items (two-step) |
+| Add new items (keep existing) | Include only new items in Quoted_Items (default additive behavior) |
+| Update existing item (e.g. change qty) | Include the item with its existing `id` + updated fields (no `_delete`) |
+
+#### NEVER DO (Line Item Updates)
+- **NEVER** send Quoted_Items with only the items you want to keep, expecting Zoho to remove the rest. This ADDS duplicates.
+- **NEVER** assume Quoted_Items in an update payload replaces the existing list. It is always additive.
+- **NEVER** attempt to delete Quoted_Items via the `Quoted_Items` module directly (`ZohoCRM_deleteRecord` on `Quoted_Items` returns "record not approved" error).
+
 ### COMPLETE QUOTE CREATION PAYLOAD (MANDATORY — v31)
 
 Every Quote Create call MUST use this template. Omitting ANY of these fields is a creation error. Copy and fill in all values before calling the API.
@@ -1519,6 +1590,8 @@ Gmail Thread: {link if available}
 
 Before ANY record creation, display validation table. The table must include ALL fields from the COMPLETE PAYLOAD TEMPLATES above.
 
+**EXCEPTION — Send Quote to Customer Pipeline:** When running the full send-quote pipeline on an existing account with billing address on file, use PROCEED-FIRST MODE (see SEND QUOTE TO CUSTOMER WORKFLOW). Show an assumption summary inline and proceed immediately — do not wait for table approval unless a blocking ambiguity exists (missing contact, missing address, truly unknown SKU family).
+
 ### Deal Pre-Creation Validation Example
 ```
 PRE-CREATION VALIDATION (DEAL):
@@ -1602,6 +1675,11 @@ IF Lead_Source = "Stratus Referal", "VDC", or "Website":
 - "send quote to...", "send quote", "send this quote"
 - "generate PO and send", "send contract to customer"
 - "send quote to customer"
+- "send to [name]", "send [name] a quote", "send this to [name]"
+- "send the contract to [name]", "get this over to [name]"
+- "quote [name] on...", "put together a quote and send to [name]"
+
+**Trigger Rule:** ANY phrase combining a send/quote intent with a customer name or account reference routes to this full pipeline — not to email drafting. If a quote already exists in context, skip Phase A entirely and start at Phase C.
 
 ### Difference from "Create Quote"
 | Create Quote | Send Quote to Customer |
@@ -1614,6 +1692,42 @@ IF Lead_Source = "Stratus Referal", "VDC", or "Website":
 - Customer name, contact email, and account must be identifiable
 - Products/SKUs and quantities must be confirmed (use Gmail thread if referenced)
 - All standard quote creation prerequisites from zoho-crm skill apply
+
+### PROCEED-FIRST MODE (NEW IN V34 — Send Quote Pipeline Only)
+
+For the Send Quote to Customer pipeline on **existing accounts with a billing address on file**, skip the pre-creation confirmation gate and proceed immediately. Show a brief assumption summary inline, then continue. Only stop if a genuine blocking ambiguity exists.
+
+```
+PROCEED-FIRST ELIGIBILITY CHECK:
+✓ Account exists in Zoho with billing address populated?
+✓ Contact identified with email?
+✓ SKUs resolved (even if assumption made — see SKU DEFAULTS below)?
+→ ALL YES: Proceed immediately. Show assumption summary. Do NOT wait for approval.
+
+✗ ANY NO: Stop and resolve the specific blocker before proceeding.
+```
+
+**Assumption Summary Format (show inline, do not gate on it):**
+```
+Proceeding with: Eric Schueler @ Hampton Roads [HRCT] | 1x CW9172I-RTG + 1x LIC-ENT-1YR | $937 ecomm | Cash terms | Stratus Referal
+Correct anything above or let me run — creating deal and quote now...
+```
+
+Then immediately proceed to Phase A without waiting for a reply.
+
+### SKU DEFAULTS (Resolve Ambiguity Without Stopping)
+
+When a SKU family is referenced without a variant suffix, apply these defaults and note the assumption:
+
+| Ambiguous Input | Default Assumption | Note in Summary |
+|-----------------|-------------------|-----------------|
+| "CW9172" | `CW9172I-RTG` (indoor, Wi-Fi 7) | "Assumed indoor I-variant" |
+| "CW9163" | `CW9163E-MR` (outdoor) | "Assumed outdoor E-variant" |
+| "CW9166" | `CW9166I-MR` (indoor) | "Assumed indoor I-variant" |
+| "MR36" | `MR36-HW` | "Assumed -HW suffix" |
+| "MX75" | `MX75-HW` | "Assumed -HW suffix" |
+
+If the assumed variant turns out wrong, user corrects after the fact. Never stop for a variant question on a known family — make the most common assumption and flag it.
 
 ### Workflow Phases
 
@@ -1647,16 +1761,34 @@ Note: Pricing is already applied inline during Phase A quote creation (v34 defau
 5. If still not done → report error to user
 
 #### PHASE D — Convert to PO
-1. **Pre-conversion checkpoint** (MANDATORY — display to user):
+
+**NET_TERMS SMART DEFAULT (NEW IN V34):**
+
+Before displaying the pre-conversion checkpoint, resolve Net_Terms automatically:
+
+```
+1. Check Account record for Preferred_Net_Terms custom field
+   → If populated: use that value silently
+2. IF Grand_Total < $5,000 AND no Preferred_Net_Terms on Account:
+   → Default to "Cash" silently
+3. IF Grand_Total >= $5,000 AND no Preferred_Net_Terms:
+   → Default to "Net 15" and show in checkpoint for confirmation
+4. IF Delinquency_Score is non-green (any color other than dark green):
+   → Override to "Cash" regardless of above
+```
+
+This means for small deals to existing accounts, Net_Terms resolves without prompting. Only ask when the deal is large enough that terms actually matter to the customer.
+
+1. **Pre-conversion checkpoint** (display — but do NOT gate for approval on small deals with auto-resolved terms):
    ```
    | Field | Value | Status |
    |-------|-------|--------|
-   | Net_Terms | Net 15 | ⚠ FINAL - verify before proceeding |
+   | Net_Terms | Cash (auto: <$5K) | ✓ |
    | Contact | {Contact_Name} | ✓ |
    | Tax Exempt | {Yes/No} | ✓ |
    | Grand Total | ${amount} | ✓ |
    ```
-   Default Net_Terms = Net 15 unless user specifies otherwise.
+   For large deals (≥$5K) where Net_Terms defaulted to Net 15: show checkpoint and wait for explicit confirmation or correction before proceeding.
 
 2. Set Admin_Action = "LIVE_ConvertQuoteToSO" on Quote
 3. Wait 6 seconds, re-fetch Quote
@@ -2101,6 +2233,7 @@ After closing, always verify via re-fetch (`ZohoCRM_Get_Record` with Status chec
 45. **ECOMM 1% ROUNDING** - When applying ecomm prices from stratus-quoting-bot cache, apply 1% reduction: `adjusted_price = math.floor(ecomm_price * 0.99)`. This compensates for cache staleness vs live pricing
 46. **GMAIL THREAD READ BEFORE QUOTING** - When request references an email thread, sender, or subject, read the full Gmail thread BEFORE creating any quotes. Extract exact SKUs, quantities, terms, and contacts from the thread as source of truth
 47. **CCW SHORTCUT DEAL ID** - When triggering the CCW approval shortcut (Deal-Reg-Approval-v2-), always pass the Deal ID in the prompt message so it skips Zoho page extraction. Navigate to Quote page first before executing shortcut
+48. **QUOTED_ITEMS ARE ADDITIVE** - Zoho's Quoted_Items update is ADDITIVE, not a replacement. To delete line items, use `{"id": "line_item_id", "_delete": null}` in the Quoted_Items array. Never send only "keep" items expecting the rest to disappear — this creates duplicates. Never use ZohoCRM_deleteRecord on Quoted_Items module directly (returns "record not approved")
 
 ## Minimal Field Sets
 
@@ -2159,6 +2292,13 @@ HOT CACHE REMOVED (v30):
 - ALL product ID lookups use live batch Zoho Products search
 - Batch criteria: (Product_Code:equals:SKU1)OR(Product_Code:equals:SKU2)... (max 10 per call)
 - If inactive product error → search Products module by Product_Code for active version
+
+DELETING LINE ITEMS (v34):
+- Quoted_Items updates are ADDITIVE — Zoho adds items, never replaces
+- To delete: include `{"id": "line_item_id", "_delete": null}` in Quoted_Items array
+- To replace all: delete existing items first, then add new ones (two-step)
+- Never send "keep only" items expecting others to vanish — creates duplicates
+- ZohoCRM_deleteRecord on Quoted_Items module does NOT work (returns "record not approved")
 
 ENFORCED PAYLOAD TEMPLATES (v31):
 - COMPLETE DEAL CREATION PAYLOAD template is MANDATORY for every Deal create
@@ -2234,7 +2374,11 @@ STAGE LOCK RULES (v25):
 - Closing: Run live ZohoCRM_Get_Field lookup → use ONLY the exact "Closed (Lost)" value → never create a new option
 
 ALWAYS DO:
-✓ Copy the COMPLETE DEAL/QUOTE CREATION PAYLOAD templates for every create call (v31)
+✓ Use PROCEED-FIRST MODE for send-quote pipeline on existing accounts — show assumption summary, then create immediately (v34)
+✓ Apply SKU family defaults (CW9172→I-RTG, etc.) rather than stopping to ask for variant (v34)
+✓ Resolve Net_Terms automatically before Phase D: Preferred_Net_Terms field → Cash if <$5K → Net 15 if ≥$5K (v34)
+✓ Route ALL "send to [name]" / "send [name] a quote" phrases to full send-quote pipeline, not email drafting (v34)
+✓ Skip Phase A entirely if quote already exists in context — start at Phase C (v34)
 ✓ Include billing address (Street, City, 2-letter State, Code, Country) in every Quote payload (v31)
 ✓ Include Valid_Till (today+30), Cisco_Billing_Term (Prepaid Term), Shipping_Country (US) in every Quote (v31)
 ✓ Include Closing_Date (today+30) in every Deal payload (v31)
@@ -2262,8 +2406,13 @@ ALWAYS DO:
 ✓ Read Gmail thread before quoting when email is referenced in the request
 ✓ When triggering CCW approval shortcut, pass Deal ID in the prompt message
 ✓ Auto-submit DID to Velocity Hub webhook after successful LIVE_CiscoQuote_Deal (non-blocking) (v33)
+✓ Use `_delete: null` method to remove line items from Quoted_Items (never assume update replaces existing lines) (v34)
 
 NEVER DO:
+✗ Stop and ask for SKU variant confirmation when the family is known and a sensible default exists (v34)
+✗ Default Net_Terms to Net 15 on deals under $5K without checking Account Preferred_Net_Terms first (v34)
+✗ Route "send to [name]" to email drafting — always map to full send-quote pipeline (v34)
+✗ Show pre-creation validation gate on send-quote pipeline for existing accounts with full billing address (v34)
 ✗ Create a Quote without billing address fields (Street, City, State, Code, Country) (v31)
 ✗ Create a Quote without Valid_Till, Cisco_Billing_Term, or Shipping_Country (v31)
 ✗ Create a Deal without Closing_Date (v31)
@@ -2305,6 +2454,8 @@ NEVER DO:
 ✗ Block the quote workflow if Velocity Hub submission fails (it's non-blocking) (v33)
 ✗ Submit to Velocity Hub without first confirming CCW_Deal_Number is exactly 8 digits (v33)
 ✗ Complete a "Create Quote" workflow on a new deal without creating a follow-up task (v32)
+✗ Send Quoted_Items in an update expecting it to replace existing items (it adds duplicates — use _delete method) (v34)
+✗ Use ZohoCRM_deleteRecord on Quoted_Items module to remove line items (returns "record not approved") (v34)
 ```
 
 
