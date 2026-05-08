@@ -1,5 +1,41 @@
 # Subscription Modification & True Forward Skill — Changelog
 
+## v2.9.1 (2026-05-08) — Codex merge: SOAP-correct + in-place updates
+
+Hardening pass after comparing v2.9 first cut against the Codex prototype
+(`ccw_subscription_addon_quote.rb` + `submod_quote_pricing.py`). Codex's
+prototype was production-correct in three places this skill was wrong.
+
+### Fixed
+- **Real Cisco API endpoints.** Previous v2.9 cut shipped fictional JSON paths
+  (`api.cisco.com/commerce/QUOTE/v3/sync/...`). Real Manage Quote API is SOAP/XML
+  at `apix.cisco.com/commerce/QUOTING/v1/{ListQuoteService,AcquireQuoteService}`.
+  `pull_sub_mod_api.py` is now a Python port of the validated Ruby reference:
+  OAGIS SOAP envelopes, XML response parsing, NameValue + CiscoLine extraction.
+- **Decimal arithmetic with `ROUND_HALF_UP`** in `build_quote_payloads.py`
+  (replaced floats). Penny-bump heuristic added so rounded `List_Price × Qty`
+  always >= target sell amount before discount is subtracted.
+- **Default `margin_mode = "gross"`** — matches Codex + sales-team practice for
+  true-margin reporting. `markup` mode remains available.
+
+### Added
+- `scripts/submod_quote_pricing.py` (from Codex, with one cosmetic fix to
+  quantity rendering — replaced `Decimal.normalize()` with a non-scientific
+  helper). This is the **preferred Fast Path A path** when the Zoho deal
+  already has a quote attached: it patches Quoted_Items in place and preserves
+  subform line ids, dodging the subform-id-invalidation bug noted in the
+  feedback memory.
+
+### Changed
+- `pull_sub_mod_api.py` output schema now includes `ccw_net_addon_cost` and a
+  full `api.*` block per line so both `submod_quote_pricing.py` (update path)
+  and `build_quote_payloads.py` (create path) can consume the same parsed JSON.
+- SKILL.md: Fast Path A split into A-update (existing quote, preferred) and
+  A-create (new quote from scratch). Scripts table reflects all four scripts.
+  API endpoints documented inline.
+
+---
+
 ## v2.9 (2026-05-08) — API-First Sub Mod
 
 **Core goal:** When Chris has a CCW DID, pull quote economics directly from Cisco

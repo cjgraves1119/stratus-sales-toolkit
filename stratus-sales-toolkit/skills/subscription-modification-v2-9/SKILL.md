@@ -3,7 +3,7 @@ name: subscription-modification-v2-9
 description: "cisco subscription modification AND true forward quote generator. API-first sub mod workflow pulls quote/line economics from CCW DID via ListQuoteService + AcquireQuoteService, avoiding downloaded CCW XLS when API access works; bills only add-on net change with configurable 20% markup/margin while showing full subscription at $0 for no-change lines. retains XLS fallback parser and true forward workflow from cisco TF reports. triggers: subscription modification, sub mod, sub-mod, ccw subscription, add licenses, license modification, did add-on quote, true forward, tf report, tf quote, ea anniversary, value shift."
 ---
 
-# Subscription Modification & True Forward Skill v2.9 API
+# Subscription Modification & True Forward Skill v2.9
 
 Two distinct workflows in one skill:
 
@@ -44,7 +44,7 @@ These traps have caused wrong quotes in past runs. The scripts below handle them
 
 3. **Non-add-on lines are transparency only.** Keep them on the quote, but discount them 100% to $0. They are already covered under the existing subscription.
 
-4. **In API net mode, do not apply old 30%/45% list discounts.** Use Cisco `BillingAmountNetChange` / `ContractAmountNetChange` as Stratus cost, then apply configured margin. Default is `20% markup` (`sell = cost * 1.20`). If Chris asks for true gross margin, use `margin_mode="gross"`.
+4. **In API net mode, do not apply old 30%/45% list discounts.** Use Cisco `BillingAmountNetChange` / `ContractAmountNetChange` as Stratus cost, then apply configured margin. Default is `20% gross` (`sell = cost / (1 - 0.20)` = `cost / 0.80`). For markup mode, set `margin_mode="markup"` (`sell = cost * 1.20`).
 
 5. **XLS fallback traps still apply.** If API cannot pull the DID, the old downloaded-Excel path is allowed. In that path, "Pricing Term in months" column = 1 is NOT remaining term, and "Ext. List Price" already equals qty × unit × term.
 
@@ -62,12 +62,18 @@ Located in `scripts/`. True Forward uses live Zoho lookups + per-line math, not 
 
 | Script | Input | Output |
 |---|---|---|
-| `pull_sub_mod_api.py` | CCW DID/deal ID | Clean JSON with quote header, term, full lines, add-on quantity changes, Cisco net changes |
+| `pull_sub_mod_api.py` | CCW DID | SOAP OAuth2 + ListQuoteService + AcquireQuoteService against `apix.cisco.com/commerce/QUOTING/v1`. Outputs the parsed schema below with `ccw_net_addon_cost` and full `api.*` block per line. |
 | `parse_sub_mod.py` | CCW xls file path | Fallback clean JSON from downloaded XLS |
-| `build_quote_payloads.py` | parsed JSON + config JSON | Ready-to-POST Customer + OP Zoho payloads with verified totals. Supports `ccw_api_net` and old `xls_list_discount` modes |
+| `submod_quote_pricing.py` | parsed JSON + fetched Zoho quote JSON (with subform ids) | Ready-to-PUT Zoho update body that updates lines IN PLACE: preserves subform ids, Decimal precision, penny-bump heuristic. **Preferred path when the DID already has a Zoho quote.** |
+| `build_quote_payloads.py` | parsed JSON + config JSON | Ready-to-POST Customer + OP Zoho payloads (CREATE from scratch). Supports `ccw_api_net` (default `gross` margin mode) and `xls_list_discount`. Decimal precision + penny-bump. |
 | `verify_quotes.py` | expected JSON + actual (fetched) JSON | Pass/fail report with line-level diff |
 
-`pull_sub_mod_api.py` uses only Python stdlib but requires `CISCO_CLIENT_ID` and `CISCO_CLIENT_SECRET` in the environment. `parse_sub_mod.py` auto-installs `xlrd` for XLS fallback.
+`pull_sub_mod_api.py` and `submod_quote_pricing.py` use only Python stdlib. `pull_sub_mod_api.py` requires `CISCO_CLIENT_ID` and `CISCO_CLIENT_SECRET` in the environment. `parse_sub_mod.py` auto-installs `xlrd` for XLS fallback.
+
+**API endpoints baked in** (override via env if Cisco rotates):
+- OAuth: `https://id.cisco.com/oauth2/default/v1/token`
+- List:  `https://apix.cisco.com/commerce/QUOTING/v1/ListQuoteService`
+- Acquire: `https://apix.cisco.com/commerce/QUOTING/v1/AcquireQuoteService`
 
 ## Fast Paths
 
@@ -75,15 +81,37 @@ Located in `scripts/`. True Forward uses live Zoho lookups + per-line math, not 
 
 Chris provides a Zoho deal URL plus either a CCW DID or a sub mod CCW xls file.
 
+**A-update (preferred when Zoho deal already has a Quote attached, e.g. auto-created
+by Velocity Hub from the CCW DID):** patch the existing quote in place via
+`submod_quote_pricing.py`. Keeps subform line ids stable.
+
 ```
 1. Parse URL -> extract deal_id
-2. Fetch deal -> get Account_Name.id, Contact_Name.id (if set)
-3. Fetch account -> get billing/shipping address fields
-4. If CCW DID is available: run pull_sub_mod_api.py {did} > /tmp/parsed.json
-   Else: run parse_sub_mod.py on the XLS file > /tmp/parsed.json
-5. Build config JSON (see below). For API path set pricing_source=ccw_api_net, margin_percent=20, margin_mode=markup.
+2. Fetch deal -> Account_Name.id, Contact_Name.id, related Quotes
+3. If a Quote already exists on this deal that maps to the CCW DID:
+     a. Fetch that Quote with full Quoted_Items (each line id required)
+     b. Run pull_sub_mod_api.py {did} > /tmp/parsed.json   (or parse_sub_mod.py for xls)
+     c. Run submod_quote_pricing.py --ccw-parsed /tmp/parsed.json                                     --zoho-quote /tmp/zoho_fetch.json                                     --quote-id {quote_id}                                     --margin 20 --margin-mode gross                                     --output /tmp/quote_update.json
+     d. Show consolidated validation table. Ask Chris to proceed.
+     e. ZohoCRM_updateRecord module=Quotes recordID={quote_id}
+          body=$(jq .zoho_update_body /tmp/quote_update.json)
+     f. Re-fetch quote, compare Sub_Total to expected_pre_tax_total ($0.02 tolerance)
+     g. Create follow-up task (+7 business days)
+4. Else (no existing quote on deal): fall through to A-create below.
+```
+
+**A-create (no existing quote — build new Customer + OP quotes):**
+
+```
+1. Parse URL -> extract deal_id
+2. Fetch deal -> Account_Name.id, Contact_Name.id (if set)
+3. Fetch account -> billing/shipping address fields
+4. If CCW DID available: pull_sub_mod_api.py {did} > /tmp/parsed.json
+   Else: parse_sub_mod.py on XLS > /tmp/parsed.json
+5. Build config.json. For API path set pricing_source=ccw_api_net, margin_percent=20,
+   margin_mode=gross (default). Use markup only when explicitly requested.
 6. Run build_quote_payloads.py -> verify totals match in stdout before POST
-7. Show ONE consolidated validation table to Chris, ask to proceed
+7. Show ONE consolidated validation table. Ask Chris to proceed.
 8. POST both quotes, then run verify_quotes.py
 9. Create follow-up task (+7 business days)
 10. Report summary with quote URLs
@@ -127,29 +155,34 @@ Use this when `parsed.source == "ccw_api"` or config has `"pricing_source": "ccw
 For each line:
 
 ```
-If QuantityChange > 0 or BillingAmountNetChange > 0:
+If is_addon (QuantityChange > 0 OR BillingAmountNetChange > 0 OR ContractAmountNetChange > 0
+             OR LineChangeType == "Added"):
   quantity shown = full New Qty from CCW
-  customer invoice amount = BillingAmountNetChange × 1.20   # default 20% markup
+  cost          = BillingAmountNetChange OR ContractAmountNetChange OR ccw_net_addon_cost
+  customer invoice = cost × (1 + margin/100)              # markup mode
+                  OR cost / (1 - margin/100)              # gross mode (DEFAULT)
   discount = full visible line list amount - customer invoice amount
 
 Else:
   quantity shown = full New Qty from CCW
   customer invoice amount = 0
-  discount = full visible line list amount                  # 100% discount
+  discount = full visible line list amount                # 100% discount
 ```
 
-Example from verified DID `84410290`:
+Decimal arithmetic with `ROUND_HALF_UP` plus a penny-bump heuristic ensures the
+line total reaches the target before the discount is subtracted, so the customer
+invoice amount lands on the expected dollar+cent.
 
-- SKU `LIC-ACCSMGR-A`
-- Display quantity `35`
-- QuantityChange `35`
-- Remaining term `22.8064516129032`
-- Add-on list amount `$933.92`
-- Cisco net add-on cost `$542.79`
-- 20% markup invoice amount `$651.35`
-- Discount on the full visible line amount `$282.57`
+Example from verified DID `84410290`, SKU `LIC-ACCSMGR-A` (qty 35, list $933.92,
+Cisco net $542.79):
 
-The builder keeps extra decimal precision in `List_Price` so Zoho's `List_Price × Quantity - Discount` reconciles to the target invoice amount.
+| Mode | Customer invoice | Discount on $933.92 list |
+|---|---|---|
+| 20% markup | `542.79 × 1.20 = $651.35` | `$282.57` |
+| 20% gross  | `542.79 / 0.80 = $678.49` | `$255.43` |
+
+Default is `gross`. `markup` exists for the legacy 20%-markup-on-cost mental model.
+For sub mod work, `gross` matches the sales practice for true-margin reporting.
 
 ## XLS Discount % Decision Tree (Fallback Sub Mod Path)
 
@@ -199,7 +232,7 @@ Stratus margin = `Net TF Cost × 0.25` (since `cost / 0.80 = cost × 1.25`).
   },
   "pricing_source": "ccw_api_net",
   "margin_percent": 20,
-  "margin_mode": "markup",
+  "margin_mode": "gross",
   "valid_till": "YYYY-MM-DD",
   "discount_percent": 30,
   "subject_prefix": "Short customer name",
@@ -300,7 +333,7 @@ STEP 3 - FETCH/PICK CONTACT
 
 STEP 4 - DETERMINE PRICING MODE
   If parsed.source == "ccw_api":
-    Use pricing_source=ccw_api_net, margin_percent=20, margin_mode=markup unless Chris says gross margin.
+    Use pricing_source=ccw_api_net, margin_percent=20, margin_mode=gross (default). Switch to markup only on explicit request.
   Else:
     Use XLS Discount Decision Tree above. If ambiguous, prompt.
 
@@ -515,11 +548,20 @@ This is expected behavior. Zoho auto-applies sales tax based on billing state fo
 
 ## What Changed from v2.8
 
-- **NEW: API-first sub mod parser** — `scripts/pull_sub_mod_api.py` starts from a CCW DID, finds the quote, and pulls Cisco line economics through Manage Quote APIs.
-- **NEW: CCW net-change pricing mode** — `build_quote_payloads.py` supports `pricing_source=ccw_api_net`.
-- **NEW: Full-quantity display with add-on-only billing** — both customer and OP quotes can show the full subscription state, discount no-change lines to `$0`, and invoice only Cisco's add-on net change plus margin.
-- **NEW: Configurable margin** — default `20% markup`; optional true gross margin mode.
-- **Retained: XLS fallback** — old `parse_sub_mod.py` path remains available when API access is unavailable.
+- **NEW: SOAP-based API client** — `scripts/pull_sub_mod_api.py` is a Python port of a
+  Cisco-validated Ruby reference. Hits the real Manage Quote API endpoints
+  (`apix.cisco.com/commerce/QUOTING/v1` SOAP/XML), parses OAGIS QuoteLine + CiscoLine
+  blocks, and surfaces `ccw_net_addon_cost` per line.
+- **NEW: In-place quote update path** — `scripts/submod_quote_pricing.py` patches an
+  existing Zoho quote line-by-line by matching subform ids. Decimal precision with a
+  penny-bump heuristic. Preserves line ids (avoids the subform-id-invalidation bug).
+- **NEW: CCW net-change pricing mode** — both `submod_quote_pricing.py` and
+  `build_quote_payloads.py` produce identical math; the former updates, the latter creates.
+- **NEW: Default margin_mode = `gross`** — matches sales-team practice. `markup` mode
+  remains available via `--margin-mode markup` or `"margin_mode": "markup"` in config.
+- **NEW: Decimal arithmetic with ROUND_HALF_UP** in `build_quote_payloads.py`, replacing
+  v2.8 floats.
+- **Retained: XLS fallback** — `parse_sub_mod.py` path unchanged.
 - **Retained: True Forward workflow** — no TF logic changed.
 
 See CHANGELOG.md for per-version history.
