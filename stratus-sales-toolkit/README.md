@@ -12,7 +12,7 @@ Sales operations plugin for Stratus Information Systems. Covers the full Cisco/M
 | **fu30-followup-automation-v1-4** | 30-day post-sale follow-up email automation — always searches Gmail for context (no dollar threshold), dynamic companion skill version resolution, banned not_equals Zoho query fix |
 | **stratus-quoting-bot-v5-0** | Cisco/Meraki URL quote generation with hybrid specs system, anti-hallucination rules, license dashboard OCR 5-rule mismatch logic, MT free-tier, CW9172H hospitality support, and opt-in live datasheet RAG |
 | **stratus-quote-pdf-v2-0** | Stratus-branded PDF quote generation from Zoho CRM data |
-| **subscription-modification-v2-6** | Cisco subscription add-on and modification quote processing |
+| **subscription-modification-v2-9** | Cisco subscription add-on and modification quote processing |
 | **ccw-subscription-renewal-v1-2** | CCW subscription renewal workflow with browser automation |
 | **coterm-calculator-v1-0** | Meraki co-term expiration date calculator (weighted dollar-value method) |
 | **webex-bots-v1-8** | Commerce Bot (lead times), Stratus Chatbot (pricing), and Velocity Hub (deal approvals) via Webex |
