@@ -15,7 +15,7 @@ Prompt this skill when you have one or more WebOrder numbers (e.g., N68645, N687
 - Automatically look up the associated account
 - Link deals and POs bidirectionally
 - Identify and assign Cisco reps from deal approval emails
-- Apply standard settings (Closed Won, Stratus Referral)
+- Apply standard settings (Closed Won, Stratus Referal)
 
 **Trigger phrases:**
 - "Create deals for these WebOrders"
@@ -41,13 +41,12 @@ After deals are created and POs linked, identify Cisco reps:
 ### Step 1: Search Gmail
 For each WebOrder, search Gmail:
 ```
-Query: "N[ORDER_NUMBER] Cisco deal approval"
+Query: "N[ORDER_NUMBER]" Cisco deal approval
 ```
+The approval email comes from notificationsapp@cisco.com and carries the CCW deal name "Weborder N[ORDER_NUMBER]".
 
-### Step 2: Extract Cisco Rep Emails
-Look for pattern in email content:
-- "Cisco Reps Involved:" followed by email addresses
-- Format: `alexisma@cisco.com, jbermeop@cisco.com, tydoll@cisco.com`
+### Step 2: Harvest Cisco Rep Emails from To/CC
+Harvest the @cisco.com addresses from the matching notificationsapp@cisco.com thread's To/CC recipients. Do NOT look for a "Cisco Reps Involved:" body string — it does not exist in these emails. Exclude meraki.com ops addresses (e.g. cngopsdesk@meraki.com) and @stratusinfosystems.com.
 
 ### Step 3: Look Up Reps in Meraki_ISRs Module
 For each extracted email, search:
@@ -83,9 +82,9 @@ Update: {"data": [{"Meraki_ISR": {"id": "[cisco_rep_id]"}}]}
 **Deal Creation Fields:**
 ```
 Stage = "Closed Won"
-Lead_Source = "Stratus Referral"
+Lead_Source = "Stratus Referal"  # intentional one-R: live org picklist typo (actual_value "Partner") — do not "fix"
 Meraki_ISR = {"id": "2570562000027286729"}  # Updated after Cisco rep lookup
-Reason = "Needs a specialist"
+Lead_Source_Reason = "Needs a specialist"  # NOT "Reason" — that field doesn't exist on Deals; Zoho silently drops it
 Closing_Date = Today (format: YYYY-MM-DD)
 Amount = Grand_Total from Sales_Order
 ```
@@ -127,10 +126,10 @@ When processing multiple WebOrders, batch create deals in a single API call:
     {
       "Stage": "Closed Won",
       "Amount": 18149.53,
-      "Reason": "Needs a specialist",
+      "Lead_Source_Reason": "Needs a specialist",
       "Deal_Name": "[Generated Name 1]",
       "Meraki_ISR": {"id": "2570562000027286729"},
-      "Lead_Source": "Stratus Referral",
+      "Lead_Source": "Stratus Referal",
       "Account_Name": {"id": "[account_id_1]"},
       "Closing_Date": "2025-12-10"
     }

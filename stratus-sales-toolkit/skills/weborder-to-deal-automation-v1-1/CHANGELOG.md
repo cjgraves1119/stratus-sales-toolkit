@@ -1,5 +1,12 @@
 # Changelog
 
+## v1-1 field-fix patch (2026-07-23)
+
+### Fixed (live-verified against Zoho org647122552 + Gmail)
+- **`Reason` → `Lead_Source_Reason`**: no field named `Reason` exists on Deals; Zoho silently dropped it (v1.1-created deals had `Lead_Source_Reason: null`)
+- **`Lead_Source` "Stratus Referral" → "Stratus Referal"**: the one-R spelling is the live org picklist option (actual_value "Partner"); the two-R value inserted as a rogue unlisted picklist value and fragmented lead-source reporting
+- **Cisco rep extraction**: removed the "Cisco Reps Involved:" body anchor — that phrase exists in zero approval emails. Reps are now harvested from the notificationsapp@cisco.com approval thread's To/CC recipients, excluding meraki.com ops addresses (e.g. cngopsdesk@meraki.com) and @stratusinfosystems.com. The 0/1/2+ Meraki_ISRs decision table is unchanged.
+
 ## v1-1 (2025-12-10)
 
 ### Added
